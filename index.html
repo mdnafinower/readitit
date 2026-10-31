@@ -18,11 +18,11 @@
                 extend: {
                     colors: {
                         darkBg: '#000000',
-                        cardBg: '#171717',
-                        cardHover: '#222222',
-                        sidebarBg: '#121212',
-                        samsungBlue: '#2193E6',
-                        samsungAccent: '#1C3F7A'
+                        cardBg: '#121212',
+                        cardHover: '#1E1E1E',
+                        sidebarBg: '#0A0A0A',
+                        monoAccent: '#FFFFFF',
+                        monoMuted: '#888888'
                     }
                 }
             }
@@ -41,15 +41,15 @@
 <body class="h-[100dvh] w-screen overflow-hidden flex flex-col bg-darkBg text-white">
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-neutral-800/95 backdrop-blur-md text-white px-5 py-2.5 rounded-full shadow-2xl text-xs sm:text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none border border-neutral-700 flex items-center space-x-2">
-        <span id="toastIcon">✨</span>
+    <div id="toast" class="fixed top-10 left-1/2 -translate-x-1/2 z-[100] bg-neutral-900/95 backdrop-blur-md text-white px-5 py-2.5 rounded-full shadow-2xl text-xs sm:text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none border border-neutral-700 flex items-center space-x-2">
+        <svg class="w-4 h-4 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         <span id="toastText">Notification</span>
     </div>
 
     <!-- Global Loading Overlay -->
-    <div id="globalLoadingOverlay" class="fixed inset-0 z-[90] bg-black/75 backdrop-blur-sm hidden flex-col items-center justify-center space-y-4">
-        <div class="w-12 h-12 border-4 border-samsungBlue border-t-transparent rounded-full animate-spin"></div>
-        <p id="loadingOverlayText" class="text-sm font-medium text-neutral-200">Processing PDF...</p>
+    <div id="globalLoadingOverlay" class="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm hidden flex-col items-center justify-center space-y-4">
+        <div class="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        <p id="loadingOverlayText" class="text-xs uppercase tracking-widest font-semibold text-neutral-300">Processing PDF...</p>
     </div>
 
     <input type="file" id="pdfFileInput" accept="application/pdf,.pdf" class="hidden" multiple>
@@ -57,15 +57,18 @@
     <!-- ================= MAIN WORKSPACE ================= -->
     <div id="mainAppContainer" class="flex-1 flex flex-col h-full overflow-hidden relative">
 
-        <div id="multiSelectBar" class="hidden bg-neutral-900 border-b border-neutral-800 px-4 py-3 flex items-center justify-between z-30">
+        <!-- Multi-Select Bar -->
+        <div id="multiSelectBar" class="hidden bg-neutral-950 border-b border-neutral-800 px-4 py-3 flex items-center justify-between z-30">
             <div class="flex items-center space-x-3">
-                <button onclick="exitSelectMode()" class="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-300">✕</button>
+                <button onclick="exitSelectMode()" class="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
                 <span id="selectedCountBadge" class="text-sm font-bold text-white">0 selected</span>
             </div>
             <div class="flex items-center space-x-2">
-                <button onclick="selectAllPdfs()" class="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-xs font-medium">Select All</button>
-                <button onclick="promptBulkMoveFolder()" class="px-3 py-1.5 bg-samsungBlue hover:bg-blue-600 rounded-lg text-xs font-medium">Move</button>
-                <button onclick="bulkDeleteSelected()" class="px-3 py-1.5 bg-red-600/90 hover:bg-red-600 rounded-lg text-xs font-medium">Delete</button>
+                <button onclick="selectAllPdfs()" class="px-3 py-1.5 bg-neutral-900 border border-neutral-700 hover:bg-neutral-800 rounded-lg text-xs font-medium">Select All</button>
+                <button onclick="promptBulkMoveFolder()" class="px-3 py-1.5 bg-white text-black hover:bg-neutral-200 rounded-lg text-xs font-semibold">Move</button>
+                <button onclick="bulkDeleteSelected()" class="px-3 py-1.5 bg-neutral-900 border border-neutral-700 hover:bg-neutral-800 text-neutral-200 rounded-lg text-xs font-medium">Delete</button>
             </div>
         </div>
 
@@ -73,71 +76,77 @@
             
             <div id="oneUiHeader" class="text-center mb-8 transition-all">
                 <h1 id="mainHeaderTitle" class="text-3xl sm:text-4xl font-bold tracking-tight text-white">Folders</h1>
-                <p id="mainHeaderSubtitle" class="text-neutral-400 text-xs sm:text-sm mt-1.5 font-medium">0 folders, 0 PDFs</p>
+                <p id="mainHeaderSubtitle" class="text-neutral-500 text-xs sm:text-sm mt-1.5 font-medium">0 folders, 0 PDFs</p>
             </div>
 
             <div class="flex items-center justify-between mb-5 sticky top-0 bg-darkBg/90 backdrop-blur-md py-2 z-20">
                 <div class="flex items-center space-x-2">
-                    <button onclick="toggleSidebar(true)" class="p-2.5 rounded-full hover:bg-neutral-800/80 transition active:scale-95" title="Open Navigation Drawer">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    <button onclick="toggleSidebar(true)" class="p-2.5 rounded-full hover:bg-neutral-900 transition active:scale-95" title="Menu">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
                     <span id="stickyMiniTitle" class="text-sm font-bold text-neutral-300 hidden">All PDFs</span>
                 </div>
 
                 <div class="flex items-center space-x-1.5 sm:space-x-2">
-                    <label for="pdfFileInput" class="cursor-pointer flex items-center space-x-1 px-3 py-1.5 border border-white/90 rounded-lg text-xs font-bold hover:bg-white hover:text-black transition active:scale-95">
+                    <label for="pdfFileInput" class="cursor-pointer flex items-center space-x-1 px-3 py-1.5 border border-white rounded-lg text-xs font-bold hover:bg-white hover:text-black transition active:scale-95">
                         <span>PDF+</span>
                     </label>
-                    <button onclick="toggleSearchBar(true)" class="p-2.5 rounded-full hover:bg-neutral-800/80 transition active:scale-95" title="Search Books">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <button onclick="toggleSearchBar(true)" class="p-2.5 rounded-full hover:bg-neutral-900 transition active:scale-95" title="Search">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </button>
-                    <button onclick="toggleHomeMenu(true)" class="p-2.5 rounded-full hover:bg-neutral-800/80 transition active:scale-95" title="More Options">
+                    <button onclick="toggleHomeMenu(true)" class="p-2.5 rounded-full hover:bg-neutral-900 transition active:scale-95" title="More Options">
                         <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg>
                     </button>
                 </div>
             </div>
 
+            <!-- Search Bar -->
             <div id="searchBarWrapper" class="hidden mb-6 transition-all">
                 <div class="relative flex items-center">
-                    <svg class="w-4 h-4 text-neutral-400 absolute left-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    <input type="text" id="globalSearchInput" oninput="handleGlobalSearch(this.value)" placeholder="Search PDFs by title or quote..." class="w-full bg-neutral-900 border border-neutral-700 rounded-2xl pl-10 pr-10 py-3 text-sm text-white focus:outline-none focus:border-samsungBlue transition">
-                    <button onclick="toggleSearchBar(false)" class="absolute right-3 text-neutral-400 hover:text-white text-xs bg-neutral-800 px-2.5 py-1 rounded-lg">✕</button>
+                    <svg class="w-4 h-4 text-neutral-500 absolute left-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="globalSearchInput" oninput="handleGlobalSearch(this.value)" placeholder="Search PDFs by title..." class="w-full bg-neutral-950 border border-neutral-800 rounded-2xl pl-10 pr-10 py-3 text-sm text-white focus:outline-none focus:border-white transition">
+                    <button onclick="toggleSearchBar(false)" class="absolute right-3 text-neutral-400 hover:text-white text-xs bg-neutral-900 px-2.5 py-1 rounded-lg">✕</button>
                 </div>
             </div>
 
-            <div id="folderBreadcrumbCapsule" class="hidden bg-neutral-900/90 border border-neutral-800/90 rounded-full px-4 py-2.5 flex items-center space-x-2.5 mb-6 shadow-inner cursor-pointer hover:border-neutral-700 transition" onclick="navigateView('home')">
+            <!-- Breadcrumb Capsule -->
+            <div id="folderBreadcrumbCapsule" class="hidden bg-neutral-950 border border-neutral-800 rounded-full px-4 py-2.5 flex items-center space-x-2.5 mb-6 cursor-pointer hover:border-neutral-600 transition" onclick="navigateView('home')">
                 <button class="flex items-center text-neutral-400 hover:text-white transition" title="Back to Home">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                 </button>
-                <span class="text-neutral-600 text-xs">❯</span>
-                <span id="capsuleFolderIcon" class="w-3.5 h-3.5 rounded-sm inline-block bg-samsungBlue"></span>
+                <span class="text-neutral-600 text-xs">/</span>
+                <span id="capsuleFolderIcon" class="w-3 h-3 rounded-full inline-block bg-white"></span>
                 <span id="capsuleFolderName" class="text-xs sm:text-sm font-semibold text-white truncate">Folder Name</span>
             </div>
 
+            <!-- Folders Grid Section -->
             <div id="foldersSectionWrapper" class="mb-8">
                 <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-400">Folders</h2>
-                    <button onclick="openCreateFolderModal()" class="text-xs font-semibold text-samsungBlue hover:underline">+ New Folder</button>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-500">Folders</h2>
+                    <button onclick="openCreateFolderModal()" class="text-xs font-semibold text-white hover:underline">+ New Folder</button>
                 </div>
                 <div id="foldersGridContainer" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
             </div>
 
+            <!-- Books Section -->
             <div id="booksSectionWrapper">
                 <div class="flex items-center justify-between mb-3">
-                    <h2 id="contentSectionHeading" class="text-xs font-bold uppercase tracking-wider text-neutral-400">All PDFs</h2>
-                    <span id="sortIndicatorLabel" onclick="openSortModal()" class="text-xs text-neutral-400 hover:text-white cursor-pointer flex items-center space-x-1">
+                    <h2 id="contentSectionHeading" class="text-xs font-bold uppercase tracking-wider text-neutral-500">All PDFs</h2>
+                    <button id="sortIndicatorLabel" onclick="openSortModal()" class="text-xs text-neutral-400 hover:text-white cursor-pointer flex items-center space-x-1.5">
                         <span>Sort: Latest</span>
-                        <span>⇅</span>
-                    </span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
+                    </button>
                 </div>
                 <div id="pdfItemsContainer" class="space-y-2.5"></div>
             </div>
 
+            <!-- Saved Quotes Section -->
             <div id="quotesSectionWrapper" class="hidden space-y-3"></div>
 
+            <!-- Trash Section -->
             <div id="trashSectionWrapper" class="hidden space-y-3">
                 <div class="flex justify-end mb-2">
-                    <button onclick="emptyTrashBin()" class="text-xs text-red-400 hover:underline font-medium">Empty Trash</button>
+                    <button onclick="emptyTrashBin()" class="text-xs text-neutral-300 hover:text-white underline font-medium">Empty Trash</button>
                 </div>
                 <div id="trashItemsContainer" class="space-y-2.5"></div>
             </div>
@@ -146,61 +155,75 @@
     </div>
 
     <!-- ================= FULLSCREEN PDF READER SCREEN ================= -->
-    <div id="readerScreen" class="hidden fixed inset-0 z-40 bg-neutral-950 flex flex-col select-none">
+    <div id="readerScreen" class="hidden fixed inset-0 z-40 bg-black flex flex-col select-none">
         
-        <div id="readerTopBar" class="absolute top-0 left-0 right-0 h-16 bg-neutral-900/95 backdrop-blur-md border-b border-neutral-800 px-3 sm:px-5 flex items-center justify-between z-50 transition-transform duration-300 shadow-xl">
+        <div id="readerTopBar" class="absolute top-0 left-0 right-0 h-16 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 px-3 sm:px-5 flex items-center justify-between z-50 transition-transform duration-300">
             <div class="flex items-center space-x-2 min-w-0 flex-1 mr-2">
-                <button onclick="closeReader()" class="p-2 rounded-full hover:bg-neutral-800 text-white text-xl font-bold active:scale-95" title="Back">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 19l-7-7 7-7"></path></svg>
+                <button onclick="closeReader()" class="p-2 rounded-full hover:bg-neutral-900 text-white active:scale-95" title="Back">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                 </button>
                 <div class="min-w-0 flex-1">
                     <h3 id="readerBookTitle" class="text-white font-semibold text-sm truncate">Document Title</h3>
-                    <p id="readerSubStatus" class="text-[11px] text-neutral-400">Ultra Clear HD • Fit to Screen</p>
+                    <p id="readerSubStatus" class="text-[11px] text-neutral-500">Fit to Screen</p>
                 </div>
             </div>
 
             <div class="flex items-center space-x-1 sm:space-x-1.5">
-                <button id="resetFitBtn" onclick="resetZoomToFit()" class="hidden px-2.5 py-1 bg-samsungBlue/20 border border-samsungBlue/50 text-samsungBlue rounded-lg text-[11px] font-bold transition">
+                <button id="resetFitBtn" onclick="resetZoomToFit()" class="hidden px-2.5 py-1 bg-white text-black rounded-lg text-[11px] font-bold transition">
                     100% Fit
                 </button>
-                <button onclick="toggleDarkModeInvert()" id="darkModeToggleBtn" class="p-2 rounded-xl hover:bg-neutral-800 text-lg transition" title="Invert Page Colors">🌙</button>
-                <button onclick="openReaderSearchModal()" class="p-2 rounded-xl hover:bg-neutral-800 text-white transition" title="Search in PDF">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <button onclick="toggleDarkModeInvert()" id="darkModeToggleBtn" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="Invert Page Colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
                 </button>
-                <button onclick="toggleReaderMenu(true)" class="p-2 rounded-xl hover:bg-neutral-800 text-white text-lg font-bold transition" title="More Reader Options">⋮</button>
+                <button onclick="openReaderSearchModal()" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="Search in PDF">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </button>
+                <button onclick="toggleReaderMenu(true)" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="More Reader Options">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg>
+                </button>
             </div>
         </div>
 
-        <button id="quoteFloatingBtn" class="hidden fixed z-[60] bg-samsungBlue hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-2xl border border-blue-400/30 transition transform flex items-center space-x-1.5 active:scale-95" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="openQuoteModalWithSelection()">
-            <span>❝</span>
+        <!-- Floating Save Quote Button -->
+        <button id="quoteFloatingBtn" class="hidden fixed z-[60] bg-white text-black hover:bg-neutral-200 text-xs font-bold px-3.5 py-2 rounded-xl shadow-2xl border border-neutral-400 transition transform flex items-center space-x-1.5 active:scale-95" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="openQuoteModalWithSelection()">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"></path></svg>
             <span>Save Quote</span>
         </button>
 
-        <div id="pdfViewerContainer" class="flex-1 relative overflow-hidden flex items-center justify-center bg-neutral-950" onclick="handleReaderTap(event)">
+        <!-- Main Reader Viewport -->
+        <div id="pdfViewerContainer" class="flex-1 relative overflow-hidden bg-black" onclick="handleReaderTap(event)">
             
+            <!-- Horizontal Single-Page Viewport -->
             <div id="horizontalSlideArea" class="w-full h-full overflow-auto flex items-center justify-center no-scrollbar relative">
-                <div id="singlePageWrapper" class="pinch-zoom-target relative shadow-2xl bg-white mx-auto my-auto">
+                <div id="singlePageWrapper" class="pinch-zoom-target relative shadow-2xl bg-white">
                     <canvas id="pdfCanvas" class="block"></canvas>
                     <div id="singleTextLayer" class="textLayer"></div>
                 </div>
 
+                <!-- Edge Tap Zones -->
                 <div onclick="prevPage(); event.stopPropagation();" class="fixed left-0 top-16 bottom-12 w-10 sm:w-14 z-30 cursor-pointer flex items-center justify-start pl-1.5 opacity-0 hover:opacity-100 transition group">
-                    <span class="bg-black/60 text-white p-2 rounded-full shadow-lg group-active:scale-90 transition">❮</span>
+                    <span class="bg-neutral-900/80 border border-neutral-700 text-white p-2 rounded-full shadow-lg group-active:scale-90 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </span>
                 </div>
                 <div onclick="nextPage(); event.stopPropagation();" class="fixed right-0 top-16 bottom-12 w-10 sm:w-14 z-30 cursor-pointer flex items-center justify-end pr-1.5 opacity-0 hover:opacity-100 transition group">
-                    <span class="bg-black/60 text-white p-2 rounded-full shadow-lg group-active:scale-90 transition">❯</span>
+                    <span class="bg-neutral-900/80 border border-neutral-700 text-white p-2 rounded-full shadow-lg group-active:scale-90 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </span>
                 </div>
             </div>
 
+            <!-- Vertical Continuous Scroll Viewport -->
             <div id="verticalScrollArea" class="hidden w-full h-full overflow-auto py-16 space-y-3 flex flex-col items-center no-scrollbar"></div>
 
         </div>
 
-        <div id="readerBottomBar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-3 bg-neutral-900/90 backdrop-blur-md border border-neutral-800 px-4 py-2 rounded-full shadow-2xl transition-opacity duration-300">
-            <button onclick="prevPage(); event.stopPropagation();" class="text-neutral-300 hover:text-white text-xs font-bold px-1.5">❮</button>
-            <input type="range" id="pageScrubberInput" min="1" max="1" value="1" oninput="scrubToPage(this.value)" onclick="event.stopPropagation()" class="w-28 sm:w-44 accent-samsungBlue cursor-pointer h-1 bg-neutral-700 rounded-lg">
-            <button onclick="nextPage(); event.stopPropagation();" class="text-neutral-300 hover:text-white text-xs font-bold px-1.5">❯</button>
-            <span class="text-xs font-semibold text-neutral-200 pl-1 border-l border-neutral-700">
+        <!-- Bottom Scrubber Bar -->
+        <div id="readerBottomBar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-3 bg-neutral-950/90 backdrop-blur-md border border-neutral-800 px-4 py-2 rounded-full shadow-2xl transition-opacity duration-300">
+            <button onclick="prevPage(); event.stopPropagation();" class="text-neutral-400 hover:text-white text-xs font-bold px-1.5">❮</button>
+            <input type="range" id="pageScrubberInput" min="1" max="1" value="1" oninput="scrubToPage(this.value)" onclick="event.stopPropagation()" class="w-28 sm:w-44 accent-white cursor-pointer h-1 bg-neutral-800 rounded-lg">
+            <button onclick="nextPage(); event.stopPropagation();" class="text-neutral-400 hover:text-white text-xs font-bold px-1.5">❯</button>
+            <span class="text-xs font-semibold text-neutral-300 pl-2 border-l border-neutral-800">
                 <span id="currentPageIndicator">1</span> / <span id="totalPagesIndicator">1</span>
             </span>
         </div>
@@ -208,138 +231,167 @@
     </div>
 
     <!-- ================= SIDEBAR NAVIGATION DRAWER ================= -->
-    <div id="drawerBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-black/65 z-50 hidden transition-opacity opacity-0"></div>
-    <div id="sidebarDrawer" class="fixed top-0 left-0 bottom-0 w-72 sm:w-80 bg-sidebarBg z-50 transform -translate-x-full transition-transform duration-300 flex flex-col p-5 shadow-2xl border-r border-neutral-800/80 h-[100dvh]">
+    <div id="drawerBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-black/75 z-50 hidden transition-opacity opacity-0"></div>
+    <div id="sidebarDrawer" class="fixed top-0 left-0 bottom-0 w-72 sm:w-80 bg-sidebarBg z-50 transform -translate-x-full transition-transform duration-300 flex flex-col p-5 shadow-2xl border-r border-neutral-900 h-[100dvh]">
         
         <div class="flex items-center justify-between mb-6 flex-shrink-0">
             <div class="flex items-center space-x-3">
+                <!-- Minimal Monochrome ReadIT Logo -->
                 <div class="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-md flex-shrink-0">
                     <svg viewBox="0 0 120 100" class="w-full h-full">
-                        <rect x="14" y="10" width="22" height="80" rx="5" fill="#1C3F7A"/>
-                        <path d="M25 10h6a5 5 0 0 1 5 5v70a5 5 0 0 1-5 5h-6V10z" fill="#132C58"/>
-                        <rect x="14" y="20" width="22" height="4.5" fill="#E5E9F0"/>
-                        <rect x="14" y="29" width="22" height="4.5" fill="#E5E9F0"/>
-                        <rect x="14" y="75" width="22" height="5" fill="#E5E9F0"/>
-                        <rect x="42" y="10" width="22" height="80" rx="5" fill="#122B4A"/>
-                        <path d="M53 10h6a5 5 0 0 1 5 5v70a5 5 0 0 1-5 5h-6V10z" fill="#0B1B30"/>
-                        <rect x="42" y="20" width="22" height="4.5" fill="#E5E9F0"/>
-                        <rect x="42" y="29" width="22" height="4.5" fill="#E5E9F0"/>
-                        <rect x="42" y="75" width="22" height="5" fill="#E5E9F0"/>
+                        <rect x="14" y="10" width="22" height="80" rx="5" fill="#111111"/>
+                        <rect x="14" y="20" width="22" height="4.5" fill="#E5E5E5"/>
+                        <rect x="14" y="29" width="22" height="4.5" fill="#E5E5E5"/>
+                        <rect x="14" y="75" width="22" height="5" fill="#E5E5E5"/>
+                        <rect x="42" y="10" width="22" height="80" rx="5" fill="#222222"/>
+                        <rect x="42" y="20" width="22" height="4.5" fill="#E5E5E5"/>
+                        <rect x="42" y="29" width="22" height="4.5" fill="#E5E5E5"/>
+                        <rect x="42" y="75" width="22" height="5" fill="#E5E5E5"/>
                         <g transform="rotate(-12 85 50)">
-                            <rect x="74" y="10" width="22" height="80" rx="5" fill="#0D233D"/>
-                            <path d="M85 10h6a5 5 0 0 1 5 5v70a5 5 0 0 1-5 5h-6V10z" fill="#0F3A5D"/>
-                            <rect x="74" y="20" width="22" height="4.5" fill="#E5E9F0"/>
-                            <rect x="74" y="29" width="22" height="4.5" fill="#E5E9F0"/>
-                            <rect x="74" y="75" width="22" height="5" fill="#E5E9F0"/>
+                            <rect x="74" y="10" width="22" height="80" rx="5" fill="#000000"/>
+                            <rect x="74" y="20" width="22" height="4.5" fill="#E5E5E5"/>
+                            <rect x="74" y="29" width="22" height="4.5" fill="#E5E5E5"/>
+                            <rect x="74" y="75" width="22" height="5" fill="#E5E5E5"/>
                         </g>
                     </svg>
                 </div>
-                <span class="text-lg font-extrabold tracking-tight">
-                    <span class="text-white">Read</span><span class="text-[#2193E6]">IT</span>
-                </span>
+                <span class="text-lg font-extrabold tracking-tight text-white">Read<span class="font-light text-neutral-400">IT</span></span>
             </div>
-            <button onclick="openSettingsModal()" class="p-2 rounded-full hover:bg-neutral-800 text-neutral-300 transition" title="Reader Settings">⚙️</button>
+            <button onclick="openSettingsModal()" class="p-2 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white transition" title="Settings">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
         </div>
 
+        <!-- Monochrome Nav Items -->
         <div class="space-y-1.5 mb-5 flex-shrink-0">
-            <div onclick="navigateView('home'); toggleSidebar(false);" id="navItemAll" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-neutral-800/80 text-white cursor-pointer transition">
-                <div class="flex items-center space-x-3 text-sm font-medium"><span>📓</span><span>All PDFs</span></div>
-                <span id="sidebarAllPdfCount" class="text-xs font-semibold text-neutral-400">0</span>
+            <div onclick="navigateView('home'); toggleSidebar(false);" id="navItemAll" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition">
+                <div class="flex items-center space-x-3 text-sm font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    <span>All PDFs</span>
+                </div>
+                <span id="sidebarAllPdfCount" class="text-xs font-semibold text-neutral-500">0</span>
             </div>
-            <div onclick="navigateView('favorites'); toggleSidebar(false);" id="navItemFav" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-neutral-800/60 text-neutral-200 cursor-pointer transition">
-                <div class="flex items-center space-x-3 text-sm font-medium"><span class="text-yellow-400">★</span><span>Favorites</span></div>
-                <span id="sidebarFavCount" class="text-xs font-semibold text-neutral-400">0</span>
+            <div onclick="navigateView('favorites'); toggleSidebar(false);" id="navItemFav" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition">
+                <div class="flex items-center space-x-3 text-sm font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                    <span>Favorites</span>
+                </div>
+                <span id="sidebarFavCount" class="text-xs font-semibold text-neutral-500">0</span>
             </div>
-            <div onclick="navigateView('quotes'); toggleSidebar(false);" id="navItemQuotes" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-neutral-800/60 text-neutral-200 cursor-pointer transition">
-                <div class="flex items-center space-x-3 text-sm font-medium"><span class="text-samsungBlue font-bold text-base">❝</span><span>Saved Quotes</span></div>
-                <span id="sidebarQuotesCount" class="text-xs font-semibold text-neutral-400">0</span>
+            <div onclick="navigateView('quotes'); toggleSidebar(false);" id="navItemQuotes" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition">
+                <div class="flex items-center space-x-3 text-sm font-medium">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"></path></svg>
+                    <span>Saved Quotes</span>
+                </div>
+                <span id="sidebarQuotesCount" class="text-xs font-semibold text-neutral-500">0</span>
             </div>
-            <div onclick="navigateView('trash'); toggleSidebar(false);" id="navItemTrash" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-neutral-800/60 text-neutral-200 cursor-pointer transition">
-                <div class="flex items-center space-x-3 text-sm font-medium"><span>🗑️</span><span>Trash</span></div>
-                <span id="sidebarTrashCount" class="text-xs font-semibold text-neutral-400">0</span>
+            <div onclick="navigateView('trash'); toggleSidebar(false);" id="navItemTrash" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition">
+                <div class="flex items-center space-x-3 text-sm font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <span>Trash</span>
+                </div>
+                <span id="sidebarTrashCount" class="text-xs font-semibold text-neutral-500">0</span>
             </div>
         </div>
 
-        <div class="h-[1px] bg-neutral-800 my-2 flex-shrink-0"></div>
+        <div class="h-[1px] bg-neutral-900 my-2 flex-shrink-0"></div>
 
         <div class="flex items-center justify-between px-2 mb-2.5 flex-shrink-0">
-            <span class="text-[11px] font-bold tracking-widest text-neutral-400 uppercase">Folders</span>
-            <button onclick="openCreateFolderModal()" class="text-xs font-bold text-samsungBlue hover:underline">+ Create</button>
+            <span class="text-[11px] font-bold tracking-widest text-neutral-500 uppercase">Folders</span>
+            <button onclick="openCreateFolderModal()" class="text-xs font-bold text-white hover:underline">+ Create</button>
         </div>
 
         <div id="sidebarFolderList" class="flex-1 overflow-y-auto space-y-1 no-scrollbar pr-1 min-h-0"></div>
 
-        <div class="pt-4 mt-2 border-t border-neutral-800 space-y-2.5 flex-shrink-0 pb-2">
-            <button id="drawerDownloadAppBtn" onclick="triggerPWAInstall()" class="w-full bg-samsungBlue hover:bg-blue-600 text-white font-semibold text-sm py-2.5 rounded-xl transition flex items-center justify-center space-x-2 shadow-lg active:scale-95">
-                <span>📲</span><span>Install ReadIT</span>
+        <div class="pt-4 mt-2 border-t border-neutral-900 space-y-2.5 flex-shrink-0 pb-2">
+            <button id="drawerDownloadAppBtn" onclick="triggerPWAInstall()" class="w-full bg-white hover:bg-neutral-200 text-black font-semibold text-sm py-2.5 rounded-xl transition flex items-center justify-center space-x-2 shadow-lg active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <span>Install ReadIT</span>
             </button>
-            <button onclick="openManageFoldersModal()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium text-sm py-2.5 rounded-xl transition active:scale-95">
+            <button onclick="openManageFoldersModal()" class="w-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 font-medium text-sm py-2.5 rounded-xl transition active:scale-95">
                 Manage folders
             </button>
         </div>
     </div>
 
-    <!-- ================= MODALS ================= -->
-    <div id="homeMenuModal" onclick="if(event.target === this) toggleHomeMenu(false)" class="fixed inset-0 z-50 bg-black/40 hidden flex items-start justify-end p-4 pt-16">
-        <div class="bg-neutral-900 border border-neutral-800 w-56 rounded-2xl p-2 shadow-2xl space-y-1">
-            <button onclick="toggleHomeMenu(false); enterSelectMode()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center justify-between">
-                <span>Select Books</span><span>☑️</span>
+    <!-- ================= MODALS (MONOCHROME B&W) ================= -->
+    <div id="homeMenuModal" onclick="if(event.target === this) toggleHomeMenu(false)" class="fixed inset-0 z-50 bg-black/50 hidden flex items-start justify-end p-4 pt-16">
+        <div class="bg-neutral-950 border border-neutral-800 w-56 rounded-2xl p-2 shadow-2xl space-y-1">
+            <button onclick="toggleHomeMenu(false); enterSelectMode()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center justify-between">
+                <span>Select Books</span>
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             </button>
-            <button onclick="toggleHomeMenu(false); toggleLayoutViewMode()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center justify-between">
-                <span id="viewModeMenuLabel">Grid View</span><span>⊞</span>
+            <button onclick="toggleHomeMenu(false); toggleLayoutViewMode()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center justify-between">
+                <span id="viewModeMenuLabel">Grid View</span>
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
             </button>
-            <button onclick="toggleHomeMenu(false); openSortModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center justify-between">
-                <span>Sort By</span><span>⇅</span>
+            <button onclick="toggleHomeMenu(false); openSortModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center justify-between">
+                <span>Sort By</span>
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
             </button>
-            <button onclick="toggleHomeMenu(false); openCreateFolderModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center justify-between">
-                <span>Create Folder</span><span>📁</span>
+            <button onclick="toggleHomeMenu(false); openCreateFolderModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center justify-between">
+                <span>Create Folder</span>
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
             </button>
-            <button onclick="toggleHomeMenu(false); openManageFoldersModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center justify-between">
-                <span>Manage Folders</span><span>⚙️</span>
+            <button onclick="toggleHomeMenu(false); openManageFoldersModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center justify-between">
+                <span>Manage Folders</span>
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
             </button>
-            <div class="h-[1px] bg-neutral-800 my-1"></div>
-            <button onclick="toggleHomeMenu(false); clearAllData()" class="w-full text-left px-3.5 py-2.5 text-sm text-red-400 rounded-xl hover:bg-neutral-800 transition flex items-center justify-between">
-                <span>Reset All Data</span><span>⚠️</span>
+            <div class="h-[1px] bg-neutral-900 my-1"></div>
+            <button onclick="toggleHomeMenu(false); clearAllData()" class="w-full text-left px-3.5 py-2.5 text-sm text-neutral-400 hover:text-white rounded-xl hover:bg-neutral-900 transition flex items-center justify-between">
+                <span>Reset All Data</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
         </div>
     </div>
 
-    <div id="readerMenuModal" onclick="if(event.target === this) toggleReaderMenu(false)" class="fixed inset-0 z-50 bg-black/50 hidden flex items-start justify-end p-4 pt-16">
-        <div class="bg-neutral-900 border border-neutral-800 w-64 rounded-2xl p-2.5 shadow-2xl space-y-1.5">
-            <button onclick="toggleReaderMenu(false); openReaderSearchModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center space-x-3">
-                <span>🔍</span><span>Search inside PDF</span>
+    <div id="readerMenuModal" onclick="if(event.target === this) toggleReaderMenu(false)" class="fixed inset-0 z-50 bg-black/60 hidden flex items-start justify-end p-4 pt-16">
+        <div class="bg-neutral-950 border border-neutral-800 w-64 rounded-2xl p-2.5 shadow-2xl space-y-1.5">
+            <button onclick="toggleReaderMenu(false); openReaderSearchModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center space-x-3">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <span>Search inside PDF</span>
             </button>
-            <button onclick="toggleReaderMenu(false); openPageSettingsModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center space-x-3">
-                <span>📄</span><span>Page settings</span>
+            <button onclick="toggleReaderMenu(false); openPageSettingsModal()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center space-x-3">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                <span>Page settings</span>
             </button>
-            <button onclick="toggleReaderMenu(false); resetZoomToFit()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center space-x-3">
-                <span>📐</span><span>Fit to screen</span>
+            <button onclick="toggleReaderMenu(false); resetZoomToFit()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center space-x-3">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                <span>Fit to screen</span>
             </button>
-            <button onclick="toggleReaderMenu(false); openQuoteModalWithSelection(true)" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center space-x-3">
-                <span>❝</span><span>Extract / Add Quote</span>
+            <button onclick="toggleReaderMenu(false); openQuoteModalWithSelection()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center space-x-3">
+                <svg class="w-4 h-4 text-neutral-400" fill="currentColor" viewBox="0 0 24 24"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"></path></svg>
+                <span>Extract / Add Quote</span>
             </button>
-            <button onclick="toggleReaderMenu(false); jumpToPagePrompt()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-800 transition flex items-center space-x-3">
-                <span>🔢</span><span>Go to page...</span>
+            <button onclick="toggleReaderMenu(false); jumpToPagePrompt()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center space-x-3">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                <span>Go to page...</span>
             </button>
-            <div class="h-[1px] bg-neutral-800 my-1"></div>
+            <div class="h-[1px] bg-neutral-900 my-1"></div>
             <div class="flex items-center justify-around py-1">
-                <button onclick="toggleFavoriteActiveBook()" id="readerMenuFavBtn" class="text-xl p-2 hover:bg-neutral-800 rounded-xl transition" title="Favorite">☆</button>
-                <button onclick="shareActiveBook()" class="text-xl p-2 hover:bg-neutral-800 rounded-xl transition" title="Share">🔗</button>
-                <button onclick="printActiveBook()" class="text-xl p-2 hover:bg-neutral-800 rounded-xl transition" title="Print">🖨️</button>
-                <button onclick="deleteActiveBook()" class="text-xl p-2 hover:bg-neutral-800 rounded-xl text-red-400 transition" title="Move to Trash">🗑️</button>
+                <button onclick="toggleFavoriteActiveBook()" id="readerMenuFavBtn" class="text-lg p-2 hover:bg-neutral-900 rounded-xl transition text-white" title="Favorite">☆</button>
+                <button onclick="shareActiveBook()" class="p-2 hover:bg-neutral-900 rounded-xl transition text-neutral-300 hover:text-white" title="Share">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                </button>
+                <button onclick="printActiveBook()" class="p-2 hover:bg-neutral-900 rounded-xl transition text-neutral-300 hover:text-white" title="Print">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                </button>
+                <button onclick="deleteActiveBook()" class="p-2 hover:bg-neutral-900 rounded-xl text-neutral-400 hover:text-white transition" title="Move to Trash">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="readerSearchModal" onclick="if(event.target === this) closeReaderSearchModal()" class="fixed inset-0 z-50 bg-black/65 hidden flex items-start justify-center p-4 pt-16">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
+    <div id="readerSearchModal" onclick="if(event.target === this) closeReaderSearchModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-start justify-center p-4 pt-16">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-base font-bold">Search Inside Document</h3>
                 <button onclick="closeReaderSearchModal()" class="text-neutral-400 hover:text-white text-sm">✕</button>
             </div>
             <div class="flex space-x-2">
-                <input type="text" id="pdfInternalSearchInput" onkeydown="if(event.key==='Enter') executePdfInternalSearch()" placeholder="Enter word or phrase..." class="flex-1 bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-samsungBlue">
-                <button onclick="executePdfInternalSearch()" class="bg-samsungBlue hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition">Find</button>
+                <input type="text" id="pdfInternalSearchInput" onkeydown="if(event.key==='Enter') executePdfInternalSearch()" placeholder="Enter word or phrase..." class="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white">
+                <button onclick="executePdfInternalSearch()" class="bg-white text-black hover:bg-neutral-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition">Find</button>
             </div>
             <div id="pdfSearchResultsList" class="max-h-64 overflow-y-auto space-y-2 no-scrollbar">
                 <p class="text-xs text-neutral-500 text-center py-4">Type a keyword to search across all pages.</p>
@@ -347,158 +399,154 @@
         </div>
     </div>
 
-    <div id="pageSettingsModal" onclick="if(event.target === this) closePageSettingsModal()" class="fixed inset-0 z-50 bg-black/65 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
+    <div id="pageSettingsModal" onclick="if(event.target === this) closePageSettingsModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
             <h3 class="text-lg font-bold">Page Settings</h3>
             <div>
                 <label class="text-xs text-neutral-400 mb-2 block font-medium">Scrolling Direction</label>
                 <div class="grid grid-cols-2 gap-3">
-                    <button onclick="setScrollDirection('vertical')" id="btnScrollVert" class="py-2.5 border border-neutral-700 rounded-xl text-sm font-medium transition">↕ Vertical</button>
-                    <button onclick="setScrollDirection('horizontal')" id="btnScrollHoriz" class="py-2.5 border border-neutral-700 rounded-xl text-sm font-medium transition">↔ Horizontal</button>
+                    <button onclick="setScrollDirection('vertical')" id="btnScrollVert" class="py-2.5 border border-neutral-800 rounded-xl text-sm font-medium transition">↕ Vertical</button>
+                    <button onclick="setScrollDirection('horizontal')" id="btnScrollHoriz" class="py-2.5 border border-neutral-800 rounded-xl text-sm font-medium transition">↔ Horizontal</button>
                 </div>
             </div>
             <div>
                 <label class="text-xs text-neutral-400 mb-2 block font-medium">Reader Background</label>
                 <div class="flex space-x-3">
-                    <div onclick="setReaderBg('#0a0a0a')" class="w-10 h-10 rounded-xl bg-[#0a0a0a] border-2 border-neutral-500 cursor-pointer flex items-center justify-center text-[10px]">Dark</div>
-                    <div onclick="setReaderBg('#FFFFFF')" class="w-10 h-10 rounded-xl bg-white text-black border-2 border-neutral-600 cursor-pointer flex items-center justify-center text-[10px]">Light</div>
-                    <div onclick="setReaderBg('#F4ECD8')" class="w-10 h-10 rounded-xl bg-[#F4ECD8] text-black border-2 border-transparent cursor-pointer flex items-center justify-center text-[10px]">Sepia</div>
-                    <div onclick="setReaderBg('#E3EDCD')" class="w-10 h-10 rounded-xl bg-[#E3EDCD] text-black border-2 border-transparent cursor-pointer flex items-center justify-center text-[10px]">Mint</div>
+                    <div onclick="setReaderBg('#000000')" class="w-10 h-10 rounded-xl bg-black border border-neutral-700 cursor-pointer flex items-center justify-center text-[10px]">Black</div>
+                    <div onclick="setReaderBg('#1A1A1A')" class="w-10 h-10 rounded-xl bg-[#1A1A1A] border border-neutral-700 cursor-pointer flex items-center justify-center text-[10px]">Dark</div>
+                    <div onclick="setReaderBg('#E5E5E5')" class="w-10 h-10 rounded-xl bg-[#E5E5E5] text-black border border-neutral-700 cursor-pointer flex items-center justify-center text-[10px]">Gray</div>
+                    <div onclick="setReaderBg('#FFFFFF')" class="w-10 h-10 rounded-xl bg-white text-black border border-neutral-700 cursor-pointer flex items-center justify-center text-[10px]">White</div>
                 </div>
             </div>
-            <button onclick="closePageSettingsModal()" class="w-full bg-samsungBlue text-white font-semibold py-3 rounded-xl transition">Done</button>
+            <button onclick="closePageSettingsModal()" class="w-full bg-white text-black font-semibold py-3 rounded-xl transition">Done</button>
         </div>
     </div>
 
-    <div id="sortModal" onclick="if(event.target === this) closeSortModal()" class="fixed inset-0 z-50 bg-black/65 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-2">
+    <div id="sortModal" onclick="if(event.target === this) closeSortModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-1.5">
             <h3 class="text-base font-bold mb-3 px-1">Sort Books By</h3>
-            <button onclick="applySortOrder('dateDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-800 text-sm flex justify-between"><span>Date Added (Newest)</span><span>🕒</span></button>
-            <button onclick="applySortOrder('titleAsc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-800 text-sm flex justify-between"><span>Title (A - Z)</span><span>🔤</span></button>
-            <button onclick="applySortOrder('titleDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-800 text-sm flex justify-between"><span>Title (Z - A)</span><span>🔡</span></button>
-            <button onclick="applySortOrder('pagesDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-800 text-sm flex justify-between"><span>Page Count (High-Low)</span><span>📄</span></button>
+            <button onclick="applySortOrder('dateDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Date Added (Newest)</span><span>↓</span></button>
+            <button onclick="applySortOrder('titleAsc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Title (A - Z)</span><span>A-Z</span></button>
+            <button onclick="applySortOrder('titleDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Title (Z - A)</span><span>Z-A</span></button>
+            <button onclick="applySortOrder('pagesDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Page Count (High-Low)</span><span>#</span></button>
         </div>
     </div>
 
-    <div id="createFolderModal" onclick="if(event.target === this) closeCreateFolderModal()" class="fixed inset-0 z-50 bg-black/65 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+    <!-- Create Folder Modal (Monochrome Shade Picker) -->
+    <div id="createFolderModal" onclick="if(event.target === this) closeCreateFolderModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
             <h3 class="text-lg font-bold">Create New Folder</h3>
-            <input type="text" id="newFolderNameInput" onkeydown="if(event.key==='Enter') confirmCreateFolder()" placeholder="Enter folder name..." class="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-samsungBlue">
+            <input type="text" id="newFolderNameInput" onkeydown="if(event.key==='Enter') confirmCreateFolder()" placeholder="Enter folder name..." class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white">
             <div>
-                <label class="text-xs text-neutral-400 mb-2 block font-medium">Folder Color</label>
+                <label class="text-xs text-neutral-400 mb-2 block font-medium">Monochrome Shade</label>
                 <div class="flex items-center justify-between" id="folderColorPicker">
-                    <div onclick="selectFolderColor('#7A635B', this)" class="w-8 h-8 rounded-full bg-[#7A635B] ring-2 ring-white cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#2193E6', this)" class="w-8 h-8 rounded-full bg-[#2193E6] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#26B5B5', this)" class="w-8 h-8 rounded-full bg-[#26B5B5] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#EB4634', this)" class="w-8 h-8 rounded-full bg-[#EB4634] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#9B51E0', this)" class="w-8 h-8 rounded-full bg-[#9B51E0] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#F2994A', this)" class="w-8 h-8 rounded-full bg-[#F2994A] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#FFFFFF', this)" class="w-8 h-8 rounded-full bg-[#FFFFFF] ring-2 ring-white cursor-pointer border border-neutral-600"></div>
+                    <div onclick="selectFolderColor('#CCCCCC', this)" class="w-8 h-8 rounded-full bg-[#CCCCCC] cursor-pointer border border-neutral-600"></div>
+                    <div onclick="selectFolderColor('#888888', this)" class="w-8 h-8 rounded-full bg-[#888888] cursor-pointer border border-neutral-600"></div>
+                    <div onclick="selectFolderColor('#555555', this)" class="w-8 h-8 rounded-full bg-[#555555] cursor-pointer border border-neutral-600"></div>
+                    <div onclick="selectFolderColor('#333333', this)" class="w-8 h-8 rounded-full bg-[#333333] cursor-pointer border border-neutral-600"></div>
                 </div>
             </div>
             <div class="flex space-x-3 pt-2">
-                <button onclick="closeCreateFolderModal()" class="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-medium py-2.5 rounded-xl transition">Cancel</button>
-                <button onclick="confirmCreateFolder()" class="flex-1 bg-samsungBlue hover:bg-blue-600 text-white font-semibold py-2.5 rounded-xl transition">Create</button>
+                <button onclick="closeCreateFolderModal()" class="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white font-medium py-2.5 rounded-xl transition">Cancel</button>
+                <button onclick="confirmCreateFolder()" class="flex-1 bg-white hover:bg-neutral-200 text-black font-semibold py-2.5 rounded-xl transition">Create</button>
             </div>
         </div>
     </div>
 
-    <div id="quoteModal" onclick="if(event.target === this) closeQuoteModal()" class="fixed inset-0 z-[70] bg-black/70 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+    <div id="quoteModal" onclick="if(event.target === this) closeQuoteModal()" class="fixed inset-0 z-[70] bg-black/75 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-bold">Save Quote</h3>
-                <button onclick="loadFullPageTextIntoQuote()" class="text-xs font-semibold text-samsungBlue hover:underline flex items-center space-x-1">
-                    <span>📄</span><span>Load full page text</span>
+                <button onclick="loadFullPageTextIntoQuote()" class="text-xs font-semibold text-neutral-300 hover:text-white underline flex items-center space-x-1">
+                    <span>Load full page text</span>
                 </button>
             </div>
-            <p class="text-xs text-neutral-400">Review or edit the selected text before saving to your collection:</p>
-            <textarea id="quoteEditTextarea" rows="5" placeholder="Type or select text from the page..." class="w-full bg-neutral-800 border border-neutral-700 rounded-2xl p-3.5 text-sm text-white focus:outline-none focus:border-samsungBlue resize-none leading-relaxed"></textarea>
+            <p class="text-xs text-neutral-400">Review or edit the selected text before saving:</p>
+            <textarea id="quoteEditTextarea" rows="5" placeholder="Type or select text from the page..." class="w-full bg-neutral-900 border border-neutral-800 rounded-2xl p-3.5 text-sm text-white focus:outline-none focus:border-white resize-none leading-relaxed"></textarea>
             <div class="flex space-x-3">
-                <button onclick="closeQuoteModal()" class="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-medium py-2.5 rounded-xl transition">Cancel</button>
-                <button onclick="saveQuoteConfirmed()" class="flex-1 bg-samsungBlue hover:bg-blue-600 text-white font-semibold py-2.5 rounded-xl transition">Save Quote</button>
+                <button onclick="closeQuoteModal()" class="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white font-medium py-2.5 rounded-xl transition">Cancel</button>
+                <button onclick="saveQuoteConfirmed()" class="flex-1 bg-white hover:bg-neutral-200 text-black font-semibold py-2.5 rounded-xl transition">Save Quote</button>
             </div>
         </div>
     </div>
 
-    <div id="assignFolderModal" onclick="if(event.target === this) closeAssignFolderModal()" class="fixed inset-0 z-50 bg-black/65 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+    <div id="assignFolderModal" onclick="if(event.target === this) closeAssignFolderModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
             <h3 class="text-lg font-bold">Move to Folder</h3>
             <div id="assignFolderListContainer" class="space-y-2 max-h-60 overflow-y-auto no-scrollbar"></div>
-            <button onclick="closeAssignFolderModal()" class="w-full bg-neutral-800 text-white font-medium py-2.5 rounded-xl">Cancel</button>
+            <button onclick="closeAssignFolderModal()" class="w-full bg-neutral-900 text-white font-medium py-2.5 rounded-xl">Cancel</button>
         </div>
     </div>
 
-    <div id="manageFoldersModal" onclick="if(event.target === this) closeManageFoldersModal()" class="fixed inset-0 z-50 bg-black/65 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+    <div id="manageFoldersModal" onclick="if(event.target === this) closeManageFoldersModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between">
                 <h3 class="text-lg font-bold">Manage Folders</h3>
-                <button onclick="closeManageFoldersModal(); openCreateFolderModal();" class="text-xs font-bold text-samsungBlue">+ New</button>
+                <button onclick="closeManageFoldersModal(); openCreateFolderModal();" class="text-xs font-bold text-white hover:underline">+ New</button>
             </div>
             <div id="manageFoldersListContainer" class="space-y-2 max-h-64 overflow-y-auto no-scrollbar"></div>
-            <button onclick="closeManageFoldersModal()" class="w-full bg-neutral-800 text-white font-medium py-2.5 rounded-xl">Done</button>
+            <button onclick="closeManageFoldersModal()" class="w-full bg-white text-black font-semibold py-2.5 rounded-xl">Done</button>
         </div>
     </div>
 
-    <div id="settingsModal" onclick="if(event.target === this) closeSettingsModal()" class="fixed inset-0 z-50 bg-black/65 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
+    <!-- Settings Modal with Synced Default Scroll Select -->
+    <div id="settingsModal" onclick="if(event.target === this) closeSettingsModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
             <h3 class="text-lg font-bold">ReadIT Settings</h3>
             <div class="space-y-3 text-sm">
-                <div class="flex items-center justify-between py-2 border-b border-neutral-800">
+                <div class="flex items-center justify-between py-2 border-b border-neutral-900">
                     <span>Remember Last Read Page</span>
-                    <input type="checkbox" checked class="accent-samsungBlue w-4 h-4">
+                    <input type="checkbox" checked class="accent-white w-4 h-4">
                 </div>
-                <div class="flex items-center justify-between py-2 border-b border-neutral-800">
+                <div class="flex items-center justify-between py-2 border-b border-neutral-900">
                     <span>Default Scroll Mode</span>
-                    <select onchange="setScrollDirection(this.value)" class="bg-neutral-800 rounded-lg px-2.5 py-1 text-xs border border-neutral-700">
+                    <select id="defaultScrollSelect" onchange="setScrollDirection(this.value)" class="bg-neutral-900 text-white rounded-lg px-3 py-1.5 text-xs border border-neutral-700 focus:outline-none">
                         <option value="horizontal">Horizontal</option>
                         <option value="vertical">Vertical</option>
                     </select>
                 </div>
-                <div class="flex items-center justify-between py-2 border-b border-neutral-800">
+                <div class="flex items-center justify-between py-2 border-b border-neutral-900">
                     <span>Storage Engine</span>
-                    <span id="storageEngineStatus" class="text-xs text-green-400 font-medium">IndexedDB + RAM</span>
+                    <span id="storageEngineStatus" class="text-xs text-neutral-400 font-medium">IndexedDB + RAM</span>
                 </div>
             </div>
-            <button onclick="closeSettingsModal()" class="w-full bg-samsungBlue text-white font-semibold py-2.5 rounded-xl">Close</button>
+            <button onclick="closeSettingsModal()" class="w-full bg-white text-black font-semibold py-2.5 rounded-xl">Close</button>
         </div>
     </div>
 
-    <div id="pwaInstallModal" onclick="if(event.target === this) closePWAInstallModal(false)" class="fixed inset-0 z-50 bg-black/75 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+    <div id="pwaInstallModal" onclick="if(event.target === this) closePWAInstallModal(false)" class="fixed inset-0 z-50 bg-black/80 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 text-center">
             <div class="w-20 h-20 bg-white rounded-2xl mx-auto p-2 flex items-center justify-center shadow-xl">
                 <svg viewBox="0 0 120 125" class="w-full h-full">
-                    <rect x="14" y="8" width="22" height="75" rx="5" fill="#1C3F7A"/>
-                    <path d="M25 8h6a5 5 0 0 1 5 5v65a5 5 0 0 1-5 5h-6V8z" fill="#132C58"/>
-                    <rect x="14" y="18" width="22" height="4" fill="#E5E9F0"/>
-                    <rect x="14" y="26" width="22" height="4" fill="#E5E9F0"/>
-                    <rect x="14" y="68" width="22" height="4.5" fill="#E5E9F0"/>
-                    <rect x="42" y="8" width="22" height="75" rx="5" fill="#122B4A"/>
-                    <path d="M53 8h6a5 5 0 0 1 5 5v65a5 5 0 0 1-5 5h-6V8z" fill="#0B1B30"/>
-                    <rect x="42" y="18" width="22" height="4" fill="#E5E9F0"/>
-                    <rect x="42" y="26" width="22" height="4" fill="#E5E9F0"/>
-                    <rect x="42" y="68" width="22" height="4.5" fill="#E5E9F0"/>
+                    <rect x="14" y="8" width="22" height="75" rx="5" fill="#111111"/>
+                    <rect x="14" y="18" width="22" height="4" fill="#E5E5E5"/>
+                    <rect x="14" y="26" width="22" height="4" fill="#E5E5E5"/>
+                    <rect x="14" y="68" width="22" height="4.5" fill="#E5E5E5"/>
+                    <rect x="42" y="8" width="22" height="75" rx="5" fill="#222222"/>
+                    <rect x="42" y="18" width="22" height="4" fill="#E5E5E5"/>
+                    <rect x="42" y="26" width="22" height="4" fill="#E5E5E5"/>
+                    <rect x="42" y="68" width="22" height="4.5" fill="#E5E5E5"/>
                     <g transform="rotate(-12 85 45)">
-                        <rect x="74" y="8" width="22" height="75" rx="5" fill="#0D233D"/>
-                        <path d="M85 8h6a5 5 0 0 1 5 5v65a5 5 0 0 1-5 5h-6V8z" fill="#0F3A5D"/>
-                        <rect x="74" y="18" width="22" height="4" fill="#E5E9F0"/>
-                        <rect x="74" y="26" width="22" height="4" fill="#E5E9F0"/>
-                        <rect x="74" y="68" width="22" height="4.5" fill="#E5E9F0"/>
+                        <rect x="74" y="8" width="22" height="75" rx="5" fill="#000000"/>
+                        <rect x="74" y="18" width="22" height="4" fill="#E5E5E5"/>
+                        <rect x="74" y="26" width="22" height="4" fill="#E5E5E5"/>
+                        <rect x="74" y="68" width="22" height="4.5" fill="#E5E5E5"/>
                     </g>
-                    <text x="60" y="114" font-family="Inter, sans-serif" font-weight="800" font-size="26" text-anchor="middle">
-                        <tspan fill="#0B1F3A">Read</tspan><tspan fill="#2193E6">IT</tspan>
-                    </text>
+                    <text x="60" y="114" font-family="Inter, sans-serif" font-weight="800" font-size="26" text-anchor="middle" fill="#000000">ReadIT</text>
                 </svg>
             </div>
             <h3 class="text-lg font-bold">Install ReadIT</h3>
-            <p class="text-xs text-neutral-300 leading-relaxed">
-                To install <b class="text-white">ReadIT</b> on your phone's home screen for full-screen offline reading:
+            <p class="text-xs text-neutral-400 leading-relaxed">
+                Install <b class="text-white">ReadIT</b> on your home screen for distraction-free offline reading:
             </p>
-            <div class="bg-neutral-800/80 rounded-2xl p-3.5 text-left text-xs space-y-2 text-neutral-200 border border-neutral-700/60">
-                <div>1. Tap the browser menu icon <b class="text-white">(⋮)</b> or Share button.</div>
+            <div class="bg-neutral-900 rounded-2xl p-3.5 text-left text-xs space-y-2 text-neutral-300 border border-neutral-800">
+                <div>1. Tap the browser menu icon <b class="text-white">(⋮)</b>.</div>
                 <div>2. Select <b class="text-white">"Add to Home screen"</b> or <b class="text-white">"Install app"</b>.</div>
             </div>
             <div class="flex space-x-2 pt-1">
-                <button onclick="closePWAInstallModal(false)" class="flex-1 bg-neutral-800 text-neutral-300 font-medium py-2.5 rounded-xl text-xs">Later</button>
-                <button onclick="closePWAInstallModal(true)" class="flex-1 bg-samsungBlue text-white font-semibold py-2.5 rounded-xl text-xs">Done (Hide Button)</button>
+                <button onclick="closePWAInstallModal(false)" class="flex-1 bg-neutral-900 text-neutral-300 font-medium py-2.5 rounded-xl text-xs">Later</button>
+                <button onclick="closePWAInstallModal(true)" class="flex-1 bg-white text-black font-semibold py-2.5 rounded-xl text-xs">Done (Hide)</button>
             </div>
         </div>
     </div>
