@@ -73,7 +73,6 @@ body {
     flex-shrink: 0 !important;
 }
 
-/* Critical Fix: Block layout prevents flex-col squishing & offsetTop miscalculation */
 #verticalScrollArea {
     display: block !important;
     touch-action: pan-x pan-y;
