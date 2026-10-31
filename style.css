@@ -64,8 +64,16 @@ body {
     filter: invert(100%) hue-rotate(180deg) contrast(96%);
 }
 
-/* Focal-Point Hardware Accelerated Zoom Target */
+/* Hardware Accelerated Matrix Zoom Layer */
 .pinch-zoom-target {
-    transform-origin: 0 0;
-    will-change: transform;
+    transform-origin: 0 0 !important;
+    will-change: transform, width, height;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+#horizontalSlideArea,
+#verticalScrollArea {
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
 }
