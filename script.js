@@ -1,6 +1,5 @@
 const READIT_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#FFFFFF"/><g transform="translate(46, 36) scale(3.5)"><rect x="14" y="8" width="22" height="75" rx="5" fill="#111111"/><rect x="14" y="18" width="22" height="4" fill="#E5E5E5"/><rect x="14" y="26" width="22" height="4" fill="#E5E5E5"/><rect x="14" y="68" width="22" height="4.5" fill="#E5E5E5"/><rect x="42" y="8" width="22" height="75" rx="5" fill="#222222"/><rect x="42" y="18" width="22" height="4" fill="#E5E5E5"/><rect x="42" y="26" width="22" height="4" fill="#E5E5E5"/><rect x="42" y="68" width="22" height="4.5" fill="#E5E5E5"/><g transform="rotate(-12 85 45)"><rect x="74" y="8" width="22" height="75" rx="5" fill="#000000"/><rect x="74" y="18" width="22" height="4" fill="#E5E5E5"/><rect x="74" y="26" width="22" height="4" fill="#E5E5E5"/><rect x="74" y="68" width="22" height="4.5" fill="#E5E5E5"/></g><text x="60" y="114" font-family="Arial, sans-serif" font-weight="900" font-size="27" text-anchor="middle" fill="#000000">ReadIT</text></g></svg>`;
 
-// Monochrome Minimal SVG Icons
 const MONO_ICONS = {
     pdfDoc: `<svg class="w-5 h-5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M13 3v5a1 1 0 001 1h5"></path></svg>`,
     folder: `<svg class="w-4 h-4 text-neutral-400 hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>`,
@@ -15,9 +14,9 @@ let appData = {
     trash: [],
     sortBy: 'dateDesc',
     viewMode: 'list',
-    scrollDirection: 'horizontal', // Persisted in localStorage
-    readerBgColor: '#000000',       // Persisted in localStorage
-    isDarkModeInverted: false,      // Persisted in localStorage
+    scrollDirection: 'horizontal',
+    readerBgColor: '#000000',
+    isDarkModeInverted: false,
     isAppInstalled: false
 };
 
@@ -39,21 +38,26 @@ let totalReaderPages = 1;
 let scrollDirection = 'horizontal';
 let isDarkModeInverted = false;
 let readerUiVisible = true;
+
+// Advanced Zoom & Geometry State
 let baseFitScale = 1.0;
+let basePageWidth = 0;
+let basePageHeight = 0;
 let userZoomMultiplier = 1.0;
 let verticalObserver = null;
 let activeRenderTask = null;
+let sharpRenderDebounceTimer = null;
 
-// Advanced Focal-Point Pinch Zoom State
+// Gesture & Matrix Pinch State
 let touchStartX = 0;
 let touchStartY = 0;
 let isPinching = false;
-let initialPinchDist = null;
-let livePinchMultiplier = 1.0;
-let pinchFocalClientX = 0;
-let pinchFocalClientY = 0;
-let pinchPageRatioX = 0.5;
-let pinchPageRatioY = 0.5;
+let pinchStartDist = 0;
+let pinchStartZoom = 1.0;
+let pinchDocPointX = 0;
+let pinchDocPointY = 0;
+let pinchTargetSlot = null;
+let pinchSlotStartOffsetTop = 0;
 let lastTapTimestamp = 0;
 let deferredInstallPrompt = null;
 
@@ -138,7 +142,6 @@ async function removePdfBinary(id) {
     } catch (e) {}
 }
 
-// Persistent Metadata Loader (Fixes Vertical Scroll Reset Bug)
 function loadMetadata() {
     try {
         const raw = localStorage.getItem('samsung_reader_meta_v2');
@@ -160,7 +163,6 @@ function loadMetadata() {
     scrollDirection = appData.scrollDirection;
     isDarkModeInverted = appData.isDarkModeInverted;
 
-    // Sync UI controls with saved settings
     const defaultScrollEl = document.getElementById('defaultScrollSelect');
     if (defaultScrollEl) defaultScrollEl.value = scrollDirection;
 
@@ -273,7 +275,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     window.addEventListener('resize', () => {
         if (currentView === 'reader' && activePdfDoc && userZoomMultiplier === 1.0) {
-            if (scrollDirection === 'vertical') setupVerticalVirtualReader();
+            if (scrollDirection === 'vertical') setupVerticalVirtualReader(false);
             else renderSingleHorizontalPage(currentReaderPage);
         }
     });
@@ -627,6 +629,7 @@ function renderTrashList() {
     `).join('');
 }
 
+// --- CORE FIT-TO-SCREEN & ZERO-JUMP GEOMETRY ENGINE ---
 function computeFitToScreenScale(page, mode) {
     const unscaledVp = page.getViewport({ scale: 1.0 });
     const viewer = document.getElementById('pdfViewerContainer');
@@ -650,6 +653,24 @@ function getSafeRetinaDPR(viewportWidth, viewportHeight) {
     return Math.max(1, Math.min(rawDpr, maxAllowedDprW, maxAllowedDprH));
 }
 
+// Updates page margins dynamically so zooming never jumps due to flexbox layout switching
+function updateHorizontalCenteringMargins(width, height) {
+    const horizArea = document.getElementById('horizontalSlideArea');
+    const wrapper = document.getElementById('singlePageWrapper');
+    horizArea.classList.remove('flex', 'items-center', 'justify-center', 'items-start', 'justify-start');
+    horizArea.style.display = 'block';
+
+    const availW = horizArea.clientWidth || window.innerWidth;
+    const availH = horizArea.clientHeight || window.innerHeight;
+    const marginX = Math.max(0, Math.floor((availW - width) / 2));
+    const marginY = Math.max(0, Math.floor((availH - height) / 2));
+
+    wrapper.style.marginLeft = `${marginX}px`;
+    wrapper.style.marginTop = `${marginY}px`;
+    wrapper.style.marginRight = `${marginX}px`;
+    wrapper.style.marginBottom = `${marginY}px`;
+}
+
 async function openReader(pdfId) {
     const pdfMeta = appData.pdfs.find(p => p.id === pdfId);
     if (!pdfMeta) return;
@@ -659,7 +680,6 @@ async function openReader(pdfId) {
     userZoomMultiplier = 1.0;
     updateFitResetBadge();
 
-    // Always respect persisted scrollDirection on book open
     scrollDirection = appData.scrollDirection || 'horizontal';
     const horiz = document.getElementById('horizontalSlideArea');
     const vert = document.getElementById('verticalScrollArea');
@@ -705,7 +725,7 @@ async function openReader(pdfId) {
         scrubber.value = currentReaderPage;
 
         if (scrollDirection === 'vertical') {
-            await setupVerticalVirtualReader();
+            await setupVerticalVirtualReader(false);
         } else {
             await renderSingleHorizontalPage(currentReaderPage);
         }
@@ -718,6 +738,7 @@ async function openReader(pdfId) {
 }
 
 function closeReader() {
+    clearTimeout(sharpRenderDebounceTimer);
     document.getElementById('readerScreen').classList.add('hidden');
     document.getElementById('quoteFloatingBtn').classList.add('hidden');
     if (verticalObserver) {
@@ -729,8 +750,8 @@ function closeReader() {
     renderWorkspace();
 }
 
-// Double-Buffered Horizontal Rendering with Focal-Point Scroll Anchoring
-async function renderSingleHorizontalPage(pageNum, focalAnchor = null) {
+// Double-Buffered Horizontal Rendering (Preserves exact scroll & visual state)
+async function renderSingleHorizontalPage(pageNum, preserveScroll = false) {
     if (!activePdfDoc) return;
     currentReaderPage = pageNum;
     saveLastReadPage(pageNum);
@@ -747,6 +768,10 @@ async function renderSingleHorizontalPage(pageNum, focalAnchor = null) {
 
         const page = await activePdfDoc.getPage(pageNum);
         baseFitScale = computeFitToScreenScale(page, 'horizontal');
+        const fitVp = page.getViewport({ scale: baseFitScale });
+        basePageWidth = fitVp.width;
+        basePageHeight = fitVp.height;
+
         const finalCssScale = baseFitScale * userZoomMultiplier;
         const viewport = page.getViewport({ scale: finalCssScale });
         const dpr = getSafeRetinaDPR(viewport.width, viewport.height);
@@ -755,7 +780,10 @@ async function renderSingleHorizontalPage(pageNum, focalAnchor = null) {
         const wrapper = document.getElementById('singlePageWrapper');
         const canvas = document.getElementById('pdfCanvas');
 
-        // Render offscreen first so canvas never flashes blank while zooming
+        const savedScrollL = horizArea.scrollLeft;
+        const savedScrollT = horizArea.scrollTop;
+
+        // Render offscreen first so canvas never flickers blank
         const offCanvas = document.createElement('canvas');
         offCanvas.width = Math.floor(viewport.width * dpr);
         offCanvas.height = Math.floor(viewport.height * dpr);
@@ -768,41 +796,28 @@ async function renderSingleHorizontalPage(pageNum, focalAnchor = null) {
         });
         await activeRenderTask.promise;
 
-        // Apply layout mode based on zoom
-        if (userZoomMultiplier > 1.02) {
-            horizArea.classList.remove('items-center', 'justify-center');
-            horizArea.classList.add('items-start', 'justify-start');
-            wrapper.style.margin = '0';
-        } else {
-            horizArea.classList.remove('items-start', 'justify-start');
-            horizArea.classList.add('items-center', 'justify-center');
-            wrapper.style.margin = 'auto';
-        }
-
-        wrapper.style.transform = 'scale(1)';
         wrapper.style.width = `${viewport.width}px`;
         wrapper.style.height = `${viewport.height}px`;
+        updateHorizontalCenteringMargins(viewport.width, viewport.height);
 
+        canvas.style.transform = 'none';
         canvas.width = offCanvas.width;
         canvas.height = offCanvas.height;
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
         canvas.getContext('2d').drawImage(offCanvas, 0, 0);
 
-        // Lock scroll position to exact finger focal point
-        if (focalAnchor && userZoomMultiplier > 1.02) {
-            const areaRect = horizArea.getBoundingClientRect();
-            const fingerOffsetX = focalAnchor.clientX - areaRect.left;
-            const fingerOffsetY = focalAnchor.clientY - areaRect.top;
-            horizArea.scrollLeft = Math.max(0, (focalAnchor.ratioX * viewport.width) - fingerOffsetX);
-            horizArea.scrollTop = Math.max(0, (focalAnchor.ratioY * viewport.height) - fingerOffsetY);
-        } else if (userZoomMultiplier <= 1.02) {
+        if (preserveScroll) {
+            horizArea.scrollLeft = savedScrollL;
+            horizArea.scrollTop = savedScrollT;
+        } else if (userZoomMultiplier <= 1.01) {
             horizArea.scrollLeft = 0;
             horizArea.scrollTop = 0;
         }
 
         const textLayerDiv = document.getElementById('singleTextLayer');
         textLayerDiv.innerHTML = '';
+        textLayerDiv.style.display = 'block';
         textLayerDiv.style.width = `${viewport.width}px`;
         textLayerDiv.style.height = `${viewport.height}px`;
         textLayerDiv.style.setProperty('--scale-factor', viewport.scale);
@@ -815,40 +830,68 @@ async function renderSingleHorizontalPage(pageNum, focalAnchor = null) {
             textDivs: []
         }).promise;
 
-        // Pre-warm next page in background for instant turn
         if (pageNum < totalReaderPages) {
             activePdfDoc.getPage(pageNum + 1).catch(() => {});
         }
     } catch (e) {}
 }
 
-async function setupVerticalVirtualReader(focalAnchor = null) {
+// In-Place Vertical Virtual Reader (Never destroys DOM during zoom)
+async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
     if (!activePdfDoc) return;
     const vertArea = document.getElementById('verticalScrollArea');
-    const prevScrollRatioY = vertArea.scrollHeight > 0 ? (vertArea.scrollTop / vertArea.scrollHeight) : 0;
-
-    vertArea.innerHTML = '';
     const zoomPct = Math.round(userZoomMultiplier * 100);
     document.getElementById('readerSubStatus').innerText = `Vertical (${zoomPct === 100 ? 'Fit Width' : zoomPct + '%'}) • ${totalReaderPages} Pages`;
 
-    if (verticalObserver) verticalObserver.disconnect();
-
     const firstPage = await activePdfDoc.getPage(1);
     baseFitScale = computeFitToScreenScale(firstPage, 'vertical');
+    const fitVp = firstPage.getViewport({ scale: baseFitScale });
+    basePageWidth = fitVp.width;
+    basePageHeight = fitVp.height;
+
     const finalCssScale = baseFitScale * userZoomMultiplier;
     const defaultVp = firstPage.getViewport({ scale: finalCssScale });
 
-    if (userZoomMultiplier > 1.02) {
-        vertArea.classList.remove('items-center');
-        vertArea.classList.add('items-start');
-    } else {
-        vertArea.classList.remove('items-start');
-        vertArea.classList.add('items-center');
+    // If slots already exist and we are just sharpening after a pinch-zoom, update in-place without rebuilding DOM!
+    const existingSlots = vertArea.querySelectorAll('.virtual-page-slot');
+    if (inPlaceZoomUpdate && existingSlots.length === totalReaderPages) {
+        const savedScrollL = vertArea.scrollLeft;
+        const savedScrollT = vertArea.scrollTop;
+
+        existingSlots.forEach(slot => {
+            slot.style.width = `${defaultVp.width}px`;
+            slot.style.height = `${defaultVp.height}px`;
+            const c = slot.querySelector('canvas');
+            if (c) {
+                c.style.width = `${defaultVp.width}px`;
+                c.style.height = `${defaultVp.height}px`;
+            }
+            slot.dataset.rendered = 'false';
+        });
+
+        vertArea.scrollLeft = savedScrollL;
+        vertArea.scrollTop = savedScrollT;
+
+        // Re-render current visible page & neighbors in crisp HD
+        const pagesToSharpen = [currentReaderPage, currentReaderPage - 1, currentReaderPage + 1];
+        for (const pNum of pagesToSharpen) {
+            if (pNum >= 1 && pNum <= totalReaderPages) {
+                const slot = vertArea.querySelector(`.virtual-page-slot[data-page-number="${pNum}"]`);
+                if (slot) {
+                    slot.dataset.rendered = 'true';
+                    renderVirtualPageSlot(pNum, slot);
+                }
+            }
+        }
+        return;
     }
+
+    vertArea.innerHTML = '';
+    if (verticalObserver) verticalObserver.disconnect();
 
     for (let i = 1; i <= totalReaderPages; i++) {
         const pageSlot = document.createElement('div');
-        pageSlot.className = `virtual-page-slot pinch-zoom-target relative bg-white shadow-2xl ${userZoomMultiplier > 1.02 ? '' : 'mx-auto'} ${isDarkModeInverted ? 'invert-pdf' : ''}`;
+        pageSlot.className = `virtual-page-slot pinch-zoom-target relative bg-white shadow-2xl mx-auto ${isDarkModeInverted ? 'invert-pdf' : ''}`;
         pageSlot.dataset.pageNumber = i;
         pageSlot.dataset.rendered = 'false';
         pageSlot.style.width = `${defaultVp.width}px`;
@@ -871,7 +914,7 @@ async function setupVerticalVirtualReader(focalAnchor = null) {
                 document.getElementById('pageScrubberInput').value = pNum;
                 saveLastReadPage(pNum);
 
-                if (slot.dataset.rendered === 'false') {
+                if (slot.dataset.rendered === 'false' && !isPinching) {
                     slot.dataset.rendered = 'true';
                     renderVirtualPageSlot(pNum, slot);
                 }
@@ -886,17 +929,7 @@ async function setupVerticalVirtualReader(focalAnchor = null) {
     document.querySelectorAll('.virtual-page-slot').forEach(slot => verticalObserver.observe(slot));
 
     const targetSlot = vertArea.querySelector(`[data-page-number="${currentReaderPage}"]`);
-    if (focalAnchor && targetSlot) {
-        const areaRect = vertArea.getBoundingClientRect();
-        const fingerOffsetX = focalAnchor.clientX - areaRect.left;
-        const fingerOffsetY = focalAnchor.clientY - areaRect.top;
-        vertArea.scrollLeft = Math.max(0, (focalAnchor.ratioX * defaultVp.width) - fingerOffsetX);
-        vertArea.scrollTop = Math.max(0, targetSlot.offsetTop + (focalAnchor.ratioY * defaultVp.height) - fingerOffsetY);
-    } else if (prevScrollRatioY > 0) {
-        vertArea.scrollTop = prevScrollRatioY * vertArea.scrollHeight;
-    } else if (targetSlot) {
-        targetSlot.scrollIntoView();
-    }
+    if (targetSlot) targetSlot.scrollIntoView();
 }
 
 async function renderVirtualPageSlot(pageNum, slotEl) {
@@ -911,20 +944,27 @@ async function renderVirtualPageSlot(pageNum, slotEl) {
         const canvas = slotEl.querySelector('canvas');
         const textDiv = slotEl.querySelector('.textLayer');
 
-        slotEl.style.width = `${vp.width}px`;
-        slotEl.style.height = `${vp.height}px`;
-        canvas.width = Math.floor(vp.width * dpr);
-        canvas.height = Math.floor(vp.height * dpr);
-        canvas.style.width = `${vp.width}px`;
-        canvas.style.height = `${vp.height}px`;
+        // Offscreen render to prevent blank flash
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = Math.floor(vp.width * dpr);
+        offCanvas.height = Math.floor(vp.height * dpr);
 
         await page.render({
-            canvasContext: canvas.getContext('2d'),
+            canvasContext: offCanvas.getContext('2d'),
             viewport: vp,
             transform: [dpr, 0, 0, dpr, 0, 0]
         }).promise;
 
+        slotEl.style.width = `${vp.width}px`;
+        slotEl.style.height = `${vp.height}px`;
+        canvas.width = offCanvas.width;
+        canvas.height = offCanvas.height;
+        canvas.style.width = `${vp.width}px`;
+        canvas.style.height = `${vp.height}px`;
+        canvas.getContext('2d').drawImage(offCanvas, 0, 0);
+
         textDiv.innerHTML = '';
+        textDiv.style.display = 'block';
         textDiv.style.width = `${vp.width}px`;
         textDiv.style.height = `${vp.height}px`;
         textDiv.style.setProperty('--scale-factor', vp.scale);
@@ -950,13 +990,13 @@ function saveLastReadPage(pageNum) {
 function resetZoomToFit() {
     userZoomMultiplier = 1.0;
     updateFitResetBadge();
-    if (scrollDirection === 'vertical') setupVerticalVirtualReader();
-    else renderSingleHorizontalPage(currentReaderPage);
+    if (scrollDirection === 'vertical') setupVerticalVirtualReader(true);
+    else renderSingleHorizontalPage(currentReaderPage, false);
 }
 
 function updateFitResetBadge() {
     const btn = document.getElementById('resetFitBtn');
-    if (Math.abs(userZoomMultiplier - 1.0) > 0.04) {
+    if (Math.abs(userZoomMultiplier - 1.0) > 0.03) {
         btn.classList.remove('hidden');
         btn.innerText = `${Math.round(userZoomMultiplier * 100)}% • Reset`;
     } else {
@@ -972,7 +1012,7 @@ function nextPage() {
     } else {
         userZoomMultiplier = 1.0;
         updateFitResetBadge();
-        renderSingleHorizontalPage(currentReaderPage + 1);
+        renderSingleHorizontalPage(currentReaderPage + 1, false);
     }
 }
 
@@ -984,7 +1024,7 @@ function prevPage() {
     } else {
         userZoomMultiplier = 1.0;
         updateFitResetBadge();
-        renderSingleHorizontalPage(currentReaderPage - 1);
+        renderSingleHorizontalPage(currentReaderPage - 1, false);
     }
 }
 
@@ -995,7 +1035,7 @@ function scrubToPage(val) {
         const slot = document.querySelector(`.virtual-page-slot[data-page-number="${pageNum}"]`);
         if (slot) slot.scrollIntoView();
     } else {
-        renderSingleHorizontalPage(pageNum);
+        renderSingleHorizontalPage(pageNum, false);
     }
 }
 
@@ -1007,37 +1047,109 @@ function jumpToPagePrompt() {
     else showToast("Invalid page number");
 }
 
-// Advanced Focal-Point Pinch-to-Zoom & Double-Tap Engine
+// --- ADVANCED ZERO-JUMP FOCAL MATRIX ZOOM ENGINE ---
+function applyInstantLiveZoom(newZoom, focalScreenX, focalScreenY) {
+    userZoomMultiplier = Math.min(4.0, Math.max(1.0, newZoom));
+    updateFitResetBadge();
+
+    const newW = basePageWidth * userZoomMultiplier;
+    const newH = basePageHeight * userZoomMultiplier;
+
+    if (scrollDirection === 'horizontal') {
+        const horizArea = document.getElementById('horizontalSlideArea');
+        const wrapper = document.getElementById('singlePageWrapper');
+        const canvas = document.getElementById('pdfCanvas');
+        const textLayer = document.getElementById('singleTextLayer');
+
+        // Hide text layer temporarily while actively pinching for 60fps smoothness
+        textLayer.style.display = 'none';
+
+        wrapper.style.width = `${newW}px`;
+        wrapper.style.height = `${newH}px`;
+        canvas.style.width = `${newW}px`;
+        canvas.style.height = `${newH}px`;
+
+        updateHorizontalCenteringMargins(newW, newH);
+
+        const areaRect = horizArea.getBoundingClientRect();
+        const fingerLocalX = focalScreenX - areaRect.left;
+        const fingerLocalY = focalScreenY - areaRect.top;
+
+        const mLeft = parseFloat(wrapper.style.marginLeft) || 0;
+        const mTop = parseFloat(wrapper.style.marginTop) || 0;
+
+        horizArea.scrollLeft = Math.max(0, mLeft + (pinchDocPointX * userZoomMultiplier) - fingerLocalX);
+        horizArea.scrollTop = Math.max(0, mTop + (pinchDocPointY * userZoomMultiplier) - fingerLocalY);
+    } else {
+        const vertArea = document.getElementById('verticalScrollArea');
+        const areaRect = vertArea.getBoundingClientRect();
+        const fingerLocalX = focalScreenX - areaRect.left;
+        const fingerLocalY = focalScreenY - areaRect.top;
+
+        vertArea.querySelectorAll('.virtual-page-slot').forEach(slot => {
+            slot.style.width = `${newW}px`;
+            slot.style.height = `${newH}px`;
+            const c = slot.querySelector('canvas');
+            if (c) {
+                c.style.width = `${newW}px`;
+                c.style.height = `${newH}px`;
+            }
+        });
+
+        if (pinchTargetSlot) {
+            const availW = vertArea.clientWidth || window.innerWidth;
+            const slotLeft = Math.max(0, (availW - newW) / 2);
+            vertArea.scrollLeft = Math.max(0, slotLeft + (pinchDocPointX * userZoomMultiplier) - fingerLocalX);
+            vertArea.scrollTop = Math.max(0, pinchTargetSlot.offsetTop + (pinchDocPointY * userZoomMultiplier) - fingerLocalY);
+        }
+    }
+}
+
+function scheduleSharpCanvasReRender() {
+    clearTimeout(sharpRenderDebounceTimer);
+    sharpRenderDebounceTimer = setTimeout(async () => {
+        if (isPinching || !activePdfDoc) return;
+        if (scrollDirection === 'vertical') {
+            await setupVerticalVirtualReader(true);
+        } else {
+            await renderSingleHorizontalPage(currentReaderPage, true);
+        }
+    }, 180);
+}
+
 function setupReaderGestures() {
     const viewer = document.getElementById('pdfViewerContainer');
+    const horizArea = document.getElementById('horizontalSlideArea');
     const wrapper = document.getElementById('singlePageWrapper');
     const vertArea = document.getElementById('verticalScrollArea');
 
-    function getActivePageElement() {
-        if (scrollDirection === 'horizontal') return wrapper;
-        return vertArea.querySelector(`.virtual-page-slot[data-page-number="${currentReaderPage}"]`) || wrapper;
-    }
-
     viewer.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
+            clearTimeout(sharpRenderDebounceTimer);
             isPinching = true;
-            initialPinchDist = Math.hypot(
+
+            pinchStartDist = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
-            livePinchMultiplier = 1.0;
+            pinchStartZoom = userZoomMultiplier;
 
-            // Midpoint of the two fingers
-            pinchFocalClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-            pinchFocalClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
 
-            const targetEl = getActivePageElement();
-            const rect = targetEl.getBoundingClientRect();
-            pinchPageRatioX = Math.max(0, Math.min(1, (pinchFocalClientX - rect.left) / Math.max(1, rect.width)));
-            pinchPageRatioY = Math.max(0, Math.min(1, (pinchFocalClientY - rect.top) / Math.max(1, rect.height)));
-
-            // Set transform-origin to exact finger midpoint so live animation never shifts sideways
-            targetEl.style.transformOrigin = `${pinchPageRatioX * 100}% ${pinchPageRatioY * 100}%`;
+            if (scrollDirection === 'horizontal') {
+                const rect = wrapper.getBoundingClientRect();
+                pinchDocPointX = (midX - rect.left) / userZoomMultiplier;
+                pinchDocPointY = (midY - rect.top) / userZoomMultiplier;
+            } else {
+                const elAtMid = document.elementFromPoint(midX, midY);
+                pinchTargetSlot = elAtMid ? elAtMid.closest('.virtual-page-slot') : vertArea.querySelector(`.virtual-page-slot[data-page-number="${currentReaderPage}"]`);
+                if (pinchTargetSlot) {
+                    const rect = pinchTargetSlot.getBoundingClientRect();
+                    pinchDocPointX = (midX - rect.left) / userZoomMultiplier;
+                    pinchDocPointY = (midY - rect.top) / userZoomMultiplier;
+                }
+            }
         } else if (e.touches.length === 1 && !isPinching) {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
@@ -1045,53 +1157,34 @@ function setupReaderGestures() {
     }, { passive: true });
 
     viewer.addEventListener('touchmove', (e) => {
-        if (isPinching && e.touches.length === 2 && initialPinchDist) {
+        if (isPinching && e.touches.length === 2 && pinchStartDist > 0) {
             e.preventDefault();
             const currentDist = Math.hypot(
                 e.touches[0].clientX - e.touches[1].clientX,
                 e.touches[0].clientY - e.touches[1].clientY
             );
-            livePinchMultiplier = currentDist / initialPinchDist;
-            const targetTotalZoom = Math.min(3.5, Math.max(0.85, userZoomMultiplier * livePinchMultiplier));
-            const previewScale = targetTotalZoom / userZoomMultiplier;
+            const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
 
-            const targetEl = getActivePageElement();
-            targetEl.style.transform = `scale(${previewScale})`;
+            const newZoom = pinchStartZoom * (currentDist / pinchStartDist);
+            applyInstantLiveZoom(newZoom, midX, midY);
         }
     }, { passive: false });
 
-    viewer.addEventListener('touchend', async (e) => {
+    viewer.addEventListener('touchend', (e) => {
         if (isPinching && e.touches.length < 2) {
             isPinching = false;
-            const targetEl = getActivePageElement();
-
-            if (initialPinchDist && Math.abs(livePinchMultiplier - 1.0) > 0.05) {
-                userZoomMultiplier = Math.min(3.5, Math.max(1.0, userZoomMultiplier * livePinchMultiplier));
-                if (userZoomMultiplier < 1.06) userZoomMultiplier = 1.0;
-
-                targetEl.style.transform = 'scale(1)';
-                targetEl.style.transformOrigin = '0 0';
+            pinchStartDist = 0;
+            if (userZoomMultiplier < 1.04) {
+                userZoomMultiplier = 1.0;
                 updateFitResetBadge();
-
-                const anchor = {
-                    clientX: pinchFocalClientX,
-                    clientY: pinchFocalClientY,
-                    ratioX: pinchPageRatioX,
-                    ratioY: pinchPageRatioY
-                };
-
-                if (scrollDirection === 'vertical') await setupVerticalVirtualReader(anchor);
-                else await renderSingleHorizontalPage(currentReaderPage, anchor);
-            } else {
-                targetEl.style.transform = 'scale(1)';
             }
-            initialPinchDist = null;
-            livePinchMultiplier = 1.0;
+            scheduleSharpCanvasReRender();
             return;
         }
 
-        // Exact Point Double-Tap Zoom
-        if (e.changedTouches.length === 1) {
+        // Smooth Focal Double-Tap Zoom
+        if (e.changedTouches.length === 1 && !isPinching) {
             const now = Date.now();
             const tapX = e.changedTouches[0].clientX;
             const tapY = e.changedTouches[0].clientY;
@@ -1100,26 +1193,31 @@ function setupReaderGestures() {
 
             if (Math.abs(dx) < 15 && dy < 15) {
                 if (now - lastTapTimestamp < 280) {
-                    const targetEl = getActivePageElement();
-                    const rect = targetEl.getBoundingClientRect();
-                    const anchor = {
-                        clientX: tapX,
-                        clientY: tapY,
-                        ratioX: Math.max(0, Math.min(1, (tapX - rect.left) / Math.max(1, rect.width))),
-                        ratioY: Math.max(0, Math.min(1, (tapY - rect.top) / Math.max(1, rect.height)))
-                    };
+                    if (scrollDirection === 'horizontal') {
+                        const rect = wrapper.getBoundingClientRect();
+                        pinchDocPointX = (tapX - rect.left) / userZoomMultiplier;
+                        pinchDocPointY = (tapY - rect.top) / userZoomMultiplier;
+                    } else {
+                        const elAtTap = document.elementFromPoint(tapX, tapY);
+                        pinchTargetSlot = elAtTap ? elAtTap.closest('.virtual-page-slot') : vertArea.querySelector(`.virtual-page-slot[data-page-number="${currentReaderPage}"]`);
+                        if (pinchTargetSlot) {
+                            const rect = pinchTargetSlot.getBoundingClientRect();
+                            pinchDocPointX = (tapX - rect.left) / userZoomMultiplier;
+                            pinchDocPointY = (tapY - rect.top) / userZoomMultiplier;
+                        }
+                    }
 
-                    userZoomMultiplier = userZoomMultiplier > 1.1 ? 1.0 : 2.25;
-                    updateFitResetBadge();
-                    if (scrollDirection === 'vertical') setupVerticalVirtualReader(anchor);
-                    else renderSingleHorizontalPage(currentReaderPage, anchor);
+                    const nextZoom = userZoomMultiplier > 1.08 ? 1.0 : 2.25;
+                    applyInstantLiveZoom(nextZoom, tapX, tapY);
+                    scheduleSharpCanvasReRender();
                     lastTapTimestamp = 0;
                     return;
                 }
                 lastTapTimestamp = now;
             }
 
-            if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.04) {
+            // Horizontal Swipe to Turn Page (Only when not zoomed in)
+            if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.03) {
                 const sel = window.getSelection();
                 if (sel && sel.toString().trim().length > 0) return;
 
@@ -1131,27 +1229,30 @@ function setupReaderGestures() {
         }
     }, { passive: true });
 
-    // Desktop Ctrl + Wheel Focal Zoom
+    // Desktop Trackpad Pinch / Ctrl + Wheel Zoom
     viewer.addEventListener('wheel', (e) => {
         if (e.ctrlKey) {
             e.preventDefault();
-            const targetEl = getActivePageElement();
-            const rect = targetEl.getBoundingClientRect();
-            const anchor = {
-                clientX: e.clientX,
-                clientY: e.clientY,
-                ratioX: Math.max(0, Math.min(1, (e.clientX - rect.left) / Math.max(1, rect.width))),
-                ratioY: Math.max(0, Math.min(1, (e.clientY - rect.top) / Math.max(1, rect.height)))
-            };
+            if (scrollDirection === 'horizontal') {
+                const rect = wrapper.getBoundingClientRect();
+                pinchDocPointX = (e.clientX - rect.left) / userZoomMultiplier;
+                pinchDocPointY = (e.clientY - rect.top) / userZoomMultiplier;
+            } else {
+                const elAtCursor = document.elementFromPoint(e.clientX, e.clientY);
+                pinchTargetSlot = elAtCursor ? elAtCursor.closest('.virtual-page-slot') : vertArea.querySelector(`.virtual-page-slot[data-page-number="${currentReaderPage}"]`);
+                if (pinchTargetSlot) {
+                    const rect = pinchTargetSlot.getBoundingClientRect();
+                    pinchDocPointX = (e.clientX - rect.left) / userZoomMultiplier;
+                    pinchDocPointY = (e.clientY - rect.top) / userZoomMultiplier;
+                }
+            }
 
-            const delta = e.deltaY < 0 ? 0.25 : -0.25;
-            userZoomMultiplier = Math.min(3.5, Math.max(1.0, userZoomMultiplier + delta));
-            updateFitResetBadge();
-            if (scrollDirection === 'vertical') setupVerticalVirtualReader(anchor);
-            else renderSingleHorizontalPage(currentReaderPage, anchor);
+            const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
+            applyInstantLiveZoom(userZoomMultiplier * zoomFactor, e.clientX, e.clientY);
+            scheduleSharpCanvasReRender();
             return;
         }
-        if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.04) {
+        if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.03) {
             if (Math.abs(e.deltaY) > 25) {
                 if (e.deltaY > 0) nextPage();
                 else prevPage();
@@ -1330,7 +1431,6 @@ function openPageSettingsModal() {
 
 function closePageSettingsModal() { document.getElementById('pageSettingsModal').classList.add('hidden'); }
 
-// Persists Scroll Direction in LocalStorage & Syncs Both Modals
 async function setScrollDirection(dir) {
     scrollDirection = dir;
     appData.scrollDirection = dir;
@@ -1347,11 +1447,11 @@ async function setScrollDirection(dir) {
     if (dir === 'vertical') {
         horiz.classList.add('hidden');
         vert.classList.remove('hidden');
-        if (activePdfDoc) await setupVerticalVirtualReader();
+        if (activePdfDoc) await setupVerticalVirtualReader(false);
     } else {
         vert.classList.add('hidden');
         horiz.classList.remove('hidden');
-        if (activePdfDoc) await renderSingleHorizontalPage(currentReaderPage);
+        if (activePdfDoc) await renderSingleHorizontalPage(currentReaderPage, false);
     }
     closePageSettingsModal();
     showToast(`Default scroll set to ${dir}`);
@@ -1458,7 +1558,7 @@ function populateAssignFolderModal() {
     `).join('');
     box.innerHTML = html;
     document.getElementById('assignFolderModal').classList.remove('hidden');
-        }
+}
 function closeAssignFolderModal() { document.getElementById('assignFolderModal').classList.add('hidden'); }
 
 function executeFolderAssignment(folderId) {
