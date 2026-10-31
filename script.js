@@ -1,4 +1,12 @@
-const READIT_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#FFFFFF"/><g transform="translate(46, 36) scale(3.5)"><rect x="14" y="8" width="22" height="75" rx="5" fill="#1C3F7A"/><path d="M25 8h6a5 5 0 0 1 5 5v65a5 5 0 0 1-5 5h-6V8z" fill="#132C58"/><rect x="14" y="18" width="22" height="4" fill="#E5E9F0"/><rect x="14" y="26" width="22" height="4" fill="#E5E9F0"/><rect x="14" y="68" width="22" height="4.5" fill="#E5E9F0"/><rect x="42" y="8" width="22" height="75" rx="5" fill="#122B4A"/><path d="M53 8h6a5 5 0 0 1 5 5v65a5 5 0 0 1-5 5h-6V8z" fill="#0B1B30"/><rect x="42" y="18" width="22" height="4" fill="#E5E9F0"/><rect x="42" y="26" width="22" height="4" fill="#E5E9F0"/><rect x="42" y="68" width="22" height="4.5" fill="#E5E9F0"/><g transform="rotate(-12 85 45)"><rect x="74" y="8" width="22" height="75" rx="5" fill="#0D233D"/><path d="M85 8h6a5 5 0 0 1 5 5v65a5 5 0 0 1-5 5h-6V8z" fill="#0F3A5D"/><rect x="74" y="18" width="22" height="4" fill="#E5E9F0"/><rect x="74" y="26" width="22" height="4" fill="#E5E9F0"/><rect x="74" y="68" width="22" height="4.5" fill="#E5E9F0"/></g><text x="60" y="114" font-family="Arial, sans-serif" font-weight="900" font-size="27" text-anchor="middle"><tspan fill="#0B1F3A">Read</tspan><tspan fill="#2193E6">IT</tspan></text></g></svg>`;
+const READIT_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#FFFFFF"/><g transform="translate(46, 36) scale(3.5)"><rect x="14" y="8" width="22" height="75" rx="5" fill="#111111"/><rect x="14" y="18" width="22" height="4" fill="#E5E5E5"/><rect x="14" y="26" width="22" height="4" fill="#E5E5E5"/><rect x="14" y="68" width="22" height="4.5" fill="#E5E5E5"/><rect x="42" y="8" width="22" height="75" rx="5" fill="#222222"/><rect x="42" y="18" width="22" height="4" fill="#E5E5E5"/><rect x="42" y="26" width="22" height="4" fill="#E5E5E5"/><rect x="42" y="68" width="22" height="4.5" fill="#E5E5E5"/><g transform="rotate(-12 85 45)"><rect x="74" y="8" width="22" height="75" rx="5" fill="#000000"/><rect x="74" y="18" width="22" height="4" fill="#E5E5E5"/><rect x="74" y="26" width="22" height="4" fill="#E5E5E5"/><rect x="74" y="68" width="22" height="4.5" fill="#E5E5E5"/></g><text x="60" y="114" font-family="Arial, sans-serif" font-weight="900" font-size="27" text-anchor="middle" fill="#000000">ReadIT</text></g></svg>`;
+
+// Monochrome Minimal SVG Icons
+const MONO_ICONS = {
+    pdfDoc: `<svg class="w-5 h-5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M13 3v5a1 1 0 001 1h5"></path></svg>`,
+    folder: `<svg class="w-4 h-4 text-neutral-400 hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>`,
+    sun: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`,
+    moon: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`
+};
 
 let appData = {
     folders: [],
@@ -7,6 +15,9 @@ let appData = {
     trash: [],
     sortBy: 'dateDesc',
     viewMode: 'list',
+    scrollDirection: 'horizontal', // Persisted in localStorage
+    readerBgColor: '#000000',       // Persisted in localStorage
+    isDarkModeInverted: false,      // Persisted in localStorage
     isAppInstalled: false
 };
 
@@ -15,7 +26,7 @@ const memoryPdfStore = new Map();
 let currentView = 'home';
 let activeFolderId = null;
 let activePdfId = null;
-let selectedFolderColor = '#7A635B';
+let selectedFolderColor = '#FFFFFF';
 let cachedSelectedText = '';
 
 let isSelectMode = false;
@@ -33,11 +44,16 @@ let userZoomMultiplier = 1.0;
 let verticalObserver = null;
 let activeRenderTask = null;
 
+// Advanced Focal-Point Pinch Zoom State
 let touchStartX = 0;
 let touchStartY = 0;
 let isPinching = false;
 let initialPinchDist = null;
 let livePinchMultiplier = 1.0;
+let pinchFocalClientX = 0;
+let pinchFocalClientY = 0;
+let pinchPageRatioX = 0.5;
+let pinchPageRatioY = 0.5;
 let lastTapTimestamp = 0;
 let deferredInstallPrompt = null;
 
@@ -49,12 +65,12 @@ function initDatabase() {
     return new Promise((resolve) => {
         try {
             if (!window.indexedDB) {
-                document.getElementById('storageEngineStatus').innerText = 'RAM Mode (Sandbox)';
+                document.getElementById('storageEngineStatus').innerText = 'RAM Mode';
                 return resolve(null);
             }
             const request = indexedDB.open(DB_NAME, 1);
             request.onerror = () => {
-                document.getElementById('storageEngineStatus').innerText = 'RAM Mode (Fallback)';
+                document.getElementById('storageEngineStatus').innerText = 'RAM Fallback';
                 resolve(null);
             };
             request.onsuccess = (e) => {
@@ -122,6 +138,7 @@ async function removePdfBinary(id) {
     } catch (e) {}
 }
 
+// Persistent Metadata Loader (Fixes Vertical Scroll Reset Bug)
 function loadMetadata() {
     try {
         const raw = localStorage.getItem('samsung_reader_meta_v2');
@@ -133,9 +150,25 @@ function loadMetadata() {
             appData.trash = parsed.trash || [];
             appData.sortBy = parsed.sortBy || 'dateDesc';
             appData.viewMode = parsed.viewMode || 'list';
+            appData.scrollDirection = parsed.scrollDirection || 'horizontal';
+            appData.readerBgColor = parsed.readerBgColor || '#000000';
+            appData.isDarkModeInverted = Boolean(parsed.isDarkModeInverted);
         }
         appData.isAppInstalled = localStorage.getItem('samsung_pwa_hidden') === 'true' || window.matchMedia('(display-mode: standalone)').matches;
     } catch (e) {}
+
+    scrollDirection = appData.scrollDirection;
+    isDarkModeInverted = appData.isDarkModeInverted;
+
+    // Sync UI controls with saved settings
+    const defaultScrollEl = document.getElementById('defaultScrollSelect');
+    if (defaultScrollEl) defaultScrollEl.value = scrollDirection;
+
+    const viewer = document.getElementById('pdfViewerContainer');
+    if (viewer) viewer.style.backgroundColor = appData.readerBgColor;
+
+    const dmBtn = document.getElementById('darkModeToggleBtn');
+    if (dmBtn) dmBtn.innerHTML = isDarkModeInverted ? MONO_ICONS.sun : MONO_ICONS.moon;
 
     if (appData.isAppInstalled) {
         const btn = document.getElementById('drawerDownloadAppBtn');
@@ -151,7 +184,10 @@ function saveMetadata() {
             quotes: appData.quotes,
             trash: appData.trash,
             sortBy: appData.sortBy,
-            viewMode: appData.viewMode
+            viewMode: appData.viewMode,
+            scrollDirection: scrollDirection,
+            readerBgColor: appData.readerBgColor,
+            isDarkModeInverted: isDarkModeInverted
         }));
     } catch (e) {}
 }
@@ -172,7 +208,7 @@ function setupDynamicPWA() {
         const manifest = {
             name: "ReadIT",
             short_name: "ReadIT",
-            description: "ReadIT - Minimal One UI AMOLED PDF Reader & Quote Saver",
+            description: "ReadIT - Minimal Monochrome AMOLED PDF Reader",
             start_url: window.location.href,
             display: "standalone",
             background_color: "#000000",
@@ -198,7 +234,7 @@ function setupDynamicPWA() {
 
     window.addEventListener('appinstalled', () => {
         closePWAInstallModal(true);
-        showToast("ReadIT installed successfully!");
+        showToast("ReadIT installed");
     });
 }
 
@@ -306,10 +342,9 @@ async function handleFileInputSelection(event) {
     event.target.value = '';
 
     if (addedCount === 1 && lastAddedId) {
-        showToast("PDF imported! Opening reader...");
         openReader(lastAddedId);
     } else if (addedCount > 1) {
-        showToast(`${addedCount} PDFs imported successfully!`);
+        showToast(`${addedCount} PDFs imported`);
     }
 }
 
@@ -338,11 +373,11 @@ function renderWorkspace() {
 
     ['navItemAll', 'navItemFav', 'navItemQuotes', 'navItemTrash'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.className = "flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-neutral-800/60 text-neutral-200 cursor-pointer transition";
+        if (el) el.className = "flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-neutral-900 text-neutral-400 cursor-pointer transition";
     });
     const activeMap = { home: 'navItemAll', favorites: 'navItemFav', quotes: 'navItemQuotes', trash: 'navItemTrash' };
     if (activeMap[currentView]) {
-        document.getElementById(activeMap[currentView]).className = "flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-neutral-800 text-white font-semibold cursor-pointer transition";
+        document.getElementById(activeMap[currentView]).className = "flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-neutral-900 text-white font-semibold cursor-pointer transition border border-neutral-800";
     }
 
     renderSidebarFolders();
@@ -406,8 +441,8 @@ function renderFoldersGrid() {
     const container = document.getElementById('foldersGridContainer');
     if (appData.folders.length === 0) {
         container.innerHTML = `
-            <div onclick="openCreateFolderModal()" class="col-span-full border border-dashed border-neutral-800 hover:border-neutral-700 rounded-2xl p-5 text-center cursor-pointer transition">
-                <p class="text-xs text-neutral-400">+ Tap to create your first folder</p>
+            <div onclick="openCreateFolderModal()" class="col-span-full border border-dashed border-neutral-800 hover:border-neutral-600 rounded-2xl p-5 text-center cursor-pointer transition">
+                <p class="text-xs text-neutral-500">+ Tap to create your first folder</p>
             </div>
         `;
         return;
@@ -416,11 +451,11 @@ function renderFoldersGrid() {
     container.innerHTML = appData.folders.map(f => {
         const count = appData.pdfs.filter(p => p.folderId === f.id).length;
         return `
-            <div onclick="navigateView('folder', '${f.id}')" class="bg-cardBg hover:bg-cardHover border border-neutral-800/80 rounded-2xl p-3.5 flex flex-col justify-between h-28 cursor-pointer transition active:scale-95 relative overflow-hidden group">
-                <div class="absolute top-0 left-0 right-0 h-7 transition-all group-hover:h-8" style="background-color: ${f.color}"></div>
-                <div class="flex items-center justify-between mt-5 z-10">
+            <div onclick="navigateView('folder', '${f.id}')" class="bg-cardBg hover:bg-cardHover border border-neutral-800/90 rounded-2xl p-3.5 flex flex-col justify-between h-28 cursor-pointer transition active:scale-95 relative overflow-hidden group">
+                <div class="absolute top-0 left-0 right-0 h-6 transition-all" style="background-color: ${f.color}"></div>
+                <div class="flex items-center justify-between mt-4 z-10">
                     <span class="text-xs font-semibold text-neutral-400">${count}</span>
-                    <span class="text-xs opacity-60">📁</span>
+                    ${MONO_ICONS.folder}
                 </div>
                 <span class="text-xs sm:text-sm font-bold text-white truncate z-10">${escapeHtml(f.name)}</span>
             </div>
@@ -443,10 +478,10 @@ function renderPdfCollection(pdfArray) {
     if (sorted.length === 0) {
         container.className = "space-y-2.5";
         container.innerHTML = `
-            <div class="bg-neutral-900/40 border border-neutral-800/60 rounded-3xl p-10 text-center space-y-3">
-                <div class="text-3xl">📄</div>
-                <p class="text-sm font-medium text-neutral-300">No PDF books found here</p>
-                <p class="text-xs text-neutral-500">Tap the <b class="text-white">PDF+</b> button above to import PDFs from your device.</p>
+            <div class="bg-neutral-950 border border-neutral-900 rounded-3xl p-10 text-center space-y-3">
+                <div class="flex justify-center">${MONO_ICONS.pdfDoc}</div>
+                <p class="text-sm font-medium text-neutral-300">No PDF books found</p>
+                <p class="text-xs text-neutral-500">Tap <b class="text-white">PDF+</b> above to import files.</p>
             </div>
         `;
         return;
@@ -460,40 +495,42 @@ function renderPdfCollection(pdfArray) {
 
         if (appData.viewMode === 'grid') {
             return `
-                <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-samsungBlue ring-2 ring-samsungBlue' : 'border-neutral-800/80'} rounded-2xl p-4 flex flex-col justify-between h-40 cursor-pointer transition relative">
+                <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white ring-1 ring-white' : 'border-neutral-800/80'} rounded-2xl p-4 flex flex-col justify-between h-40 cursor-pointer transition relative">
                     <div class="flex items-start justify-between">
-                        <div class="w-10 h-12 bg-neutral-800 border border-neutral-700 rounded-lg flex items-center justify-center text-lg">📕</div>
-                        <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="text-base ${p.isFav ? 'text-yellow-400' : 'text-neutral-600 hover:text-white'}">${p.isFav ? '★' : '☆'}</button>
+                        <div class="w-10 h-12 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-center">
+                            ${MONO_ICONS.pdfDoc}
+                        </div>
+                        <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="text-base ${p.isFav ? 'text-white' : 'text-neutral-600 hover:text-white'}">${p.isFav ? '★' : '☆'}</button>
                     </div>
                     <div>
                         <h4 class="text-xs sm:text-sm font-bold text-white line-clamp-2">${escapeHtml(p.title)}</h4>
-                        <p class="text-[11px] text-neutral-400 mt-1">${p.pages || 1} pages • ${p.size || 'PDF'}</p>
+                        <p class="text-[11px] text-neutral-500 mt-1">${p.pages || 1} pages • ${p.size || 'PDF'}</p>
                     </div>
                 </div>
             `;
         }
 
         return `
-            <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-samsungBlue bg-blue-950/20' : 'border-neutral-800/70'} rounded-2xl p-3 flex items-center justify-between cursor-pointer transition group">
+            <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white bg-neutral-900' : 'border-neutral-800/80'} rounded-2xl p-3 flex items-center justify-between cursor-pointer transition group">
                 <div class="flex items-center space-x-3.5 min-w-0 flex-1">
                     ${isSelectMode ? `
-                        <input type="checkbox" ${isSelected ? 'checked' : ''} class="w-4 h-4 accent-samsungBlue pointer-events-none">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} class="w-4 h-4 accent-white pointer-events-none">
                     ` : `
-                        <div class="w-11 h-14 bg-neutral-800 border border-neutral-700/80 rounded-xl flex flex-col items-center justify-center shadow-inner flex-shrink-0">
-                            <span class="text-base">📕</span>
-                            <span class="text-[9px] font-bold text-neutral-400 mt-0.5">PDF</span>
+                        <div class="w-11 h-14 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                            ${MONO_ICONS.pdfDoc}
+                            <span class="text-[8px] font-bold text-neutral-500 mt-0.5 tracking-wider">PDF</span>
                         </div>
                     `}
                     <div class="min-w-0 flex-1">
                         <h4 class="text-sm font-semibold text-white truncate">${escapeHtml(p.title)}</h4>
-                        <div class="flex items-center space-x-2 text-xs text-neutral-400 mt-1">
+                        <div class="flex items-center space-x-2 text-xs text-neutral-500 mt-1">
                             <span>${p.date}</span>
                             <span>•</span>
                             <span>${p.pages || 1} pages</span>
-                            ${p.lastPage > 1 ? `<span class="text-samsungBlue font-medium">• p.${p.lastPage}</span>` : ''}
+                            ${p.lastPage > 1 ? `<span class="text-neutral-200 font-semibold">• p.${p.lastPage}</span>` : ''}
                         </div>
                         ${folderObj && currentView !== 'folder' ? `
-                            <span class="inline-flex items-center space-x-1 text-[10px] bg-neutral-800 px-2 py-0.5 rounded-md mt-1 text-neutral-300">
+                            <span class="inline-flex items-center space-x-1.5 text-[10px] bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded-md mt-1 text-neutral-300">
                                 <span class="w-2 h-2 rounded-full" style="background-color:${folderObj.color}"></span>
                                 <span>${escapeHtml(folderObj.name)}</span>
                             </span>
@@ -501,8 +538,10 @@ function renderPdfCollection(pdfArray) {
                     </div>
                 </div>
                 <div class="flex items-center space-x-1 ml-2">
-                    <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="p-2 text-base ${p.isFav ? 'text-yellow-400' : 'text-neutral-500 hover:text-white'} transition" title="Favorite">${p.isFav ? '★' : '☆'}</button>
-                    <button onclick="event.stopPropagation(); promptAssignFolder('${p.id}')" class="p-2 text-neutral-400 hover:text-white transition" title="Move to Folder">📁</button>
+                    <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="p-2 text-base ${p.isFav ? 'text-white' : 'text-neutral-600 hover:text-white'} transition" title="Favorite">${p.isFav ? '★' : '☆'}</button>
+                    <button onclick="event.stopPropagation(); promptAssignFolder('${p.id}')" class="p-2 text-neutral-500 hover:text-white transition" title="Move to Folder">
+                        ${MONO_ICONS.folder}
+                    </button>
                 </div>
             </div>
         `;
@@ -523,16 +562,16 @@ function handlePdfCardInteraction(pdfId) {
 function renderSidebarFolders() {
     const list = document.getElementById('sidebarFolderList');
     if (appData.folders.length === 0) {
-        list.innerHTML = `<div class="text-neutral-500 text-xs px-2 py-2">No folders created yet</div>`;
+        list.innerHTML = `<div class="text-neutral-600 text-xs px-2 py-2">No folders created yet</div>`;
         return;
     }
     list.innerHTML = appData.folders.map(f => {
         const count = appData.pdfs.filter(p => p.folderId === f.id).length;
         const isActive = currentView === 'folder' && activeFolderId === f.id;
         return `
-            <div onclick="navigateView('folder', '${f.id}'); toggleSidebar(false);" class="flex items-center justify-between px-3 py-2.5 rounded-xl ${isActive ? 'bg-neutral-800 text-white font-semibold' : 'hover:bg-neutral-800/60 text-neutral-300'} cursor-pointer transition">
+            <div onclick="navigateView('folder', '${f.id}'); toggleSidebar(false);" class="flex items-center justify-between px-3 py-2.5 rounded-xl ${isActive ? 'bg-neutral-900 text-white font-semibold border border-neutral-800' : 'hover:bg-neutral-900/60 text-neutral-400'} cursor-pointer transition">
                 <div class="flex items-center space-x-3 truncate">
-                    <span class="w-3 h-3 rounded-sm flex-shrink-0" style="background-color: ${f.color}"></span>
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-neutral-600" style="background-color: ${f.color}"></span>
                     <span class="text-sm truncate">${escapeHtml(f.name)}</span>
                 </div>
                 <span class="text-xs text-neutral-500 font-medium">${count}</span>
@@ -545,10 +584,10 @@ function renderQuotesList() {
     const container = document.getElementById('quotesSectionWrapper');
     if (appData.quotes.length === 0) {
         container.innerHTML = `
-            <div class="bg-neutral-900/40 border border-neutral-800/60 rounded-3xl p-10 text-center space-y-2">
-                <div class="text-3xl text-samsungBlue">❝</div>
+            <div class="bg-neutral-950 border border-neutral-900 rounded-3xl p-10 text-center space-y-2">
+                <div class="text-2xl text-neutral-400">❝</div>
                 <p class="text-sm font-medium text-neutral-300">No saved quotes yet</p>
-                <p class="text-xs text-neutral-500">Select any text while reading a PDF and tap "Save Quote" to build your collection.</p>
+                <p class="text-xs text-neutral-500">Highlight text while reading a PDF and tap "Save Quote".</p>
             </div>
         `;
         return;
@@ -557,11 +596,11 @@ function renderQuotesList() {
     container.innerHTML = appData.quotes.map((q, idx) => `
         <div class="bg-cardBg border border-neutral-800 rounded-2xl p-4 space-y-3">
             <p class="text-sm text-neutral-100 italic leading-relaxed select-text">“${escapeHtml(q.text)}”</p>
-            <div class="flex items-center justify-between text-xs text-neutral-400 pt-2 border-t border-neutral-800/80">
-                <span class="text-samsungBlue font-semibold truncate max-w-[200px]">📚 ${escapeHtml(q.bookName)} • Page ${q.pageNo}</span>
+            <div class="flex items-center justify-between text-xs text-neutral-500 pt-2 border-t border-neutral-900">
+                <span class="text-neutral-300 font-semibold truncate max-w-[200px]">${escapeHtml(q.bookName)} • p.${q.pageNo}</span>
                 <div class="flex items-center space-x-3">
-                    <button onclick="copyQuoteText(${idx})" class="text-neutral-300 hover:text-white font-medium">Copy</button>
-                    <button onclick="deleteQuoteItem(${idx})" class="text-red-400 hover:underline font-medium">Delete</button>
+                    <button onclick="copyQuoteText(${idx})" class="text-neutral-400 hover:text-white font-medium">Copy</button>
+                    <button onclick="deleteQuoteItem(${idx})" class="text-neutral-400 hover:text-white underline font-medium">Delete</button>
                 </div>
             </div>
         </div>
@@ -571,7 +610,7 @@ function renderQuotesList() {
 function renderTrashList() {
     const container = document.getElementById('trashItemsContainer');
     if (appData.trash.length === 0) {
-        container.innerHTML = `<div class="text-center text-neutral-500 text-xs py-10">Trash is empty</div>`;
+        container.innerHTML = `<div class="text-center text-neutral-600 text-xs py-10">Trash is empty</div>`;
         return;
     }
     container.innerHTML = appData.trash.map((p, idx) => `
@@ -581,8 +620,8 @@ function renderTrashList() {
                 <p class="text-xs text-neutral-500">${p.pages || 1} pages</p>
             </div>
             <div class="flex items-center space-x-2">
-                <button onclick="restoreFromTrash(${idx})" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-xs text-green-400 font-medium">Restore</button>
-                <button onclick="deletePermanently(${idx})" class="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-xs text-red-400 font-medium">Delete</button>
+                <button onclick="restoreFromTrash(${idx})" class="px-3 py-1 bg-white text-black rounded-lg text-xs font-semibold">Restore</button>
+                <button onclick="deletePermanently(${idx})" class="px-3 py-1 bg-neutral-900 border border-neutral-700 rounded-lg text-xs text-neutral-300 font-medium">Delete</button>
             </div>
         </div>
     `).join('');
@@ -603,7 +642,6 @@ function computeFitToScreenScale(page, mode) {
     }
 }
 
-// Safe High-DPI calculation so zoomed canvas stays razor-sharp without exceeding mobile GPU limits
 function getSafeRetinaDPR(viewportWidth, viewportHeight) {
     const rawDpr = Math.max(window.devicePixelRatio || 1, 2.75);
     const maxCanvasDim = 4096;
@@ -621,9 +659,25 @@ async function openReader(pdfId) {
     userZoomMultiplier = 1.0;
     updateFitResetBadge();
 
+    // Always respect persisted scrollDirection on book open
+    scrollDirection = appData.scrollDirection || 'horizontal';
+    const horiz = document.getElementById('horizontalSlideArea');
+    const vert = document.getElementById('verticalScrollArea');
+    if (scrollDirection === 'vertical') {
+        horiz.classList.add('hidden');
+        vert.classList.remove('hidden');
+    } else {
+        vert.classList.add('hidden');
+        horiz.classList.remove('hidden');
+    }
+
     document.getElementById('readerBookTitle').innerText = pdfMeta.title;
     document.getElementById('readerMenuFavBtn').innerText = pdfMeta.isFav ? '★' : '☆';
     document.getElementById('readerScreen').classList.remove('hidden');
+
+    const wrapper = document.getElementById('singlePageWrapper');
+    if (isDarkModeInverted) wrapper.classList.add('invert-pdf');
+    else wrapper.classList.remove('invert-pdf');
 
     const overlay = document.getElementById('globalLoadingOverlay');
     document.getElementById('loadingOverlayText').innerText = 'Opening book...';
@@ -675,7 +729,8 @@ function closeReader() {
     renderWorkspace();
 }
 
-async function renderSingleHorizontalPage(pageNum) {
+// Double-Buffered Horizontal Rendering with Focal-Point Scroll Anchoring
+async function renderSingleHorizontalPage(pageNum, focalAnchor = null) {
     if (!activePdfDoc) return;
     currentReaderPage = pageNum;
     saveLastReadPage(pageNum);
@@ -683,7 +738,7 @@ async function renderSingleHorizontalPage(pageNum) {
     document.getElementById('currentPageIndicator').innerText = pageNum;
     document.getElementById('pageScrubberInput').value = pageNum;
     const zoomPct = Math.round(userZoomMultiplier * 100);
-    document.getElementById('readerSubStatus').innerText = `${zoomPct === 100 ? 'Ultra Clear HD • Fit to Screen' : zoomPct + '% Zoom'} • Page ${pageNum} of ${totalReaderPages}`;
+    document.getElementById('readerSubStatus').innerText = `${zoomPct === 100 ? 'Fit to Screen' : zoomPct + '% Zoom'} • Page ${pageNum} of ${totalReaderPages}`;
 
     try {
         if (activeRenderTask) {
@@ -694,39 +749,57 @@ async function renderSingleHorizontalPage(pageNum) {
         baseFitScale = computeFitToScreenScale(page, 'horizontal');
         const finalCssScale = baseFitScale * userZoomMultiplier;
         const viewport = page.getViewport({ scale: finalCssScale });
-
         const dpr = getSafeRetinaDPR(viewport.width, viewport.height);
 
         const horizArea = document.getElementById('horizontalSlideArea');
         const wrapper = document.getElementById('singlePageWrapper');
         const canvas = document.getElementById('pdfCanvas');
-        const ctx = canvas.getContext('2d');
 
-        // Ensure smooth panning when zoomed in beyond screen bounds
-        if (userZoomMultiplier > 1.05) {
+        // Render offscreen first so canvas never flashes blank while zooming
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = Math.floor(viewport.width * dpr);
+        offCanvas.height = Math.floor(viewport.height * dpr);
+        const offCtx = offCanvas.getContext('2d');
+
+        activeRenderTask = page.render({
+            canvasContext: offCtx,
+            viewport: viewport,
+            transform: [dpr, 0, 0, dpr, 0, 0]
+        });
+        await activeRenderTask.promise;
+
+        // Apply layout mode based on zoom
+        if (userZoomMultiplier > 1.02) {
             horizArea.classList.remove('items-center', 'justify-center');
             horizArea.classList.add('items-start', 'justify-start');
+            wrapper.style.margin = '0';
         } else {
             horizArea.classList.remove('items-start', 'justify-start');
             horizArea.classList.add('items-center', 'justify-center');
+            wrapper.style.margin = 'auto';
         }
 
         wrapper.style.transform = 'scale(1)';
         wrapper.style.width = `${viewport.width}px`;
         wrapper.style.height = `${viewport.height}px`;
 
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.width = offCanvas.width;
+        canvas.height = offCanvas.height;
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
+        canvas.getContext('2d').drawImage(offCanvas, 0, 0);
 
-        const transformMatrix = [dpr, 0, 0, dpr, 0, 0];
-        activeRenderTask = page.render({
-            canvasContext: ctx,
-            viewport: viewport,
-            transform: transformMatrix
-        });
-        await activeRenderTask.promise;
+        // Lock scroll position to exact finger focal point
+        if (focalAnchor && userZoomMultiplier > 1.02) {
+            const areaRect = horizArea.getBoundingClientRect();
+            const fingerOffsetX = focalAnchor.clientX - areaRect.left;
+            const fingerOffsetY = focalAnchor.clientY - areaRect.top;
+            horizArea.scrollLeft = Math.max(0, (focalAnchor.ratioX * viewport.width) - fingerOffsetX);
+            horizArea.scrollTop = Math.max(0, (focalAnchor.ratioY * viewport.height) - fingerOffsetY);
+        } else if (userZoomMultiplier <= 1.02) {
+            horizArea.scrollLeft = 0;
+            horizArea.scrollTop = 0;
+        }
 
         const textLayerDiv = document.getElementById('singleTextLayer');
         textLayerDiv.innerHTML = '';
@@ -741,12 +814,19 @@ async function renderSingleHorizontalPage(pageNum) {
             viewport: viewport,
             textDivs: []
         }).promise;
+
+        // Pre-warm next page in background for instant turn
+        if (pageNum < totalReaderPages) {
+            activePdfDoc.getPage(pageNum + 1).catch(() => {});
+        }
     } catch (e) {}
 }
 
-async function setupVerticalVirtualReader() {
+async function setupVerticalVirtualReader(focalAnchor = null) {
     if (!activePdfDoc) return;
     const vertArea = document.getElementById('verticalScrollArea');
+    const prevScrollRatioY = vertArea.scrollHeight > 0 ? (vertArea.scrollTop / vertArea.scrollHeight) : 0;
+
     vertArea.innerHTML = '';
     const zoomPct = Math.round(userZoomMultiplier * 100);
     document.getElementById('readerSubStatus').innerText = `Vertical (${zoomPct === 100 ? 'Fit Width' : zoomPct + '%'}) • ${totalReaderPages} Pages`;
@@ -758,9 +838,17 @@ async function setupVerticalVirtualReader() {
     const finalCssScale = baseFitScale * userZoomMultiplier;
     const defaultVp = firstPage.getViewport({ scale: finalCssScale });
 
+    if (userZoomMultiplier > 1.02) {
+        vertArea.classList.remove('items-center');
+        vertArea.classList.add('items-start');
+    } else {
+        vertArea.classList.remove('items-start');
+        vertArea.classList.add('items-center');
+    }
+
     for (let i = 1; i <= totalReaderPages; i++) {
         const pageSlot = document.createElement('div');
-        pageSlot.className = `virtual-page-slot relative bg-white shadow-2xl mx-auto transition-all ${isDarkModeInverted ? 'invert-pdf' : ''}`;
+        pageSlot.className = `virtual-page-slot pinch-zoom-target relative bg-white shadow-2xl ${userZoomMultiplier > 1.02 ? '' : 'mx-auto'} ${isDarkModeInverted ? 'invert-pdf' : ''}`;
         pageSlot.dataset.pageNumber = i;
         pageSlot.dataset.rendered = 'false';
         pageSlot.style.width = `${defaultVp.width}px`;
@@ -791,14 +879,24 @@ async function setupVerticalVirtualReader() {
         });
     }, {
         root: vertArea,
-        rootMargin: '400px 0px',
-        threshold: 0.1
+        rootMargin: '500px 0px',
+        threshold: 0.05
     });
 
     document.querySelectorAll('.virtual-page-slot').forEach(slot => verticalObserver.observe(slot));
 
     const targetSlot = vertArea.querySelector(`[data-page-number="${currentReaderPage}"]`);
-    if (targetSlot) targetSlot.scrollIntoView();
+    if (focalAnchor && targetSlot) {
+        const areaRect = vertArea.getBoundingClientRect();
+        const fingerOffsetX = focalAnchor.clientX - areaRect.left;
+        const fingerOffsetY = focalAnchor.clientY - areaRect.top;
+        vertArea.scrollLeft = Math.max(0, (focalAnchor.ratioX * defaultVp.width) - fingerOffsetX);
+        vertArea.scrollTop = Math.max(0, targetSlot.offsetTop + (focalAnchor.ratioY * defaultVp.height) - fingerOffsetY);
+    } else if (prevScrollRatioY > 0) {
+        vertArea.scrollTop = prevScrollRatioY * vertArea.scrollHeight;
+    } else if (targetSlot) {
+        targetSlot.scrollIntoView();
+    }
 }
 
 async function renderVirtualPageSlot(pageNum, slotEl) {
@@ -820,11 +918,10 @@ async function renderVirtualPageSlot(pageNum, slotEl) {
         canvas.style.width = `${vp.width}px`;
         canvas.style.height = `${vp.height}px`;
 
-        const transformMatrix = [dpr, 0, 0, dpr, 0, 0];
         await page.render({
             canvasContext: canvas.getContext('2d'),
             viewport: vp,
-            transform: transformMatrix
+            transform: [dpr, 0, 0, dpr, 0, 0]
         }).promise;
 
         textDiv.innerHTML = '';
@@ -855,14 +952,13 @@ function resetZoomToFit() {
     updateFitResetBadge();
     if (scrollDirection === 'vertical') setupVerticalVirtualReader();
     else renderSingleHorizontalPage(currentReaderPage);
-    showToast("Reset to Fit-to-Screen");
 }
 
 function updateFitResetBadge() {
     const btn = document.getElementById('resetFitBtn');
-    if (Math.abs(userZoomMultiplier - 1.0) > 0.05) {
+    if (Math.abs(userZoomMultiplier - 1.0) > 0.04) {
         btn.classList.remove('hidden');
-        btn.innerText = `${Math.round(userZoomMultiplier * 100)}% • Reset Fit`;
+        btn.innerText = `${Math.round(userZoomMultiplier * 100)}% • Reset`;
     } else {
         btn.classList.add('hidden');
     }
@@ -911,19 +1007,37 @@ function jumpToPagePrompt() {
     else showToast("Invalid page number");
 }
 
+// Advanced Focal-Point Pinch-to-Zoom & Double-Tap Engine
 function setupReaderGestures() {
     const viewer = document.getElementById('pdfViewerContainer');
     const wrapper = document.getElementById('singlePageWrapper');
     const vertArea = document.getElementById('verticalScrollArea');
 
+    function getActivePageElement() {
+        if (scrollDirection === 'horizontal') return wrapper;
+        return vertArea.querySelector(`.virtual-page-slot[data-page-number="${currentReaderPage}"]`) || wrapper;
+    }
+
     viewer.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
             isPinching = true;
             initialPinchDist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
             );
             livePinchMultiplier = 1.0;
+
+            // Midpoint of the two fingers
+            pinchFocalClientX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            pinchFocalClientY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+            const targetEl = getActivePageElement();
+            const rect = targetEl.getBoundingClientRect();
+            pinchPageRatioX = Math.max(0, Math.min(1, (pinchFocalClientX - rect.left) / Math.max(1, rect.width)));
+            pinchPageRatioY = Math.max(0, Math.min(1, (pinchFocalClientY - rect.top) / Math.max(1, rect.height)));
+
+            // Set transform-origin to exact finger midpoint so live animation never shifts sideways
+            targetEl.style.transformOrigin = `${pinchPageRatioX * 100}% ${pinchPageRatioY * 100}%`;
         } else if (e.touches.length === 1 && !isPinching) {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
@@ -934,59 +1048,78 @@ function setupReaderGestures() {
         if (isPinching && e.touches.length === 2 && initialPinchDist) {
             e.preventDefault();
             const currentDist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
             );
             livePinchMultiplier = currentDist / initialPinchDist;
-            const clampedPreview = Math.min(3.5, Math.max(0.75, userZoomMultiplier * livePinchMultiplier)) / userZoomMultiplier;
+            const targetTotalZoom = Math.min(3.5, Math.max(0.85, userZoomMultiplier * livePinchMultiplier));
+            const previewScale = targetTotalZoom / userZoomMultiplier;
 
-            if (scrollDirection === 'horizontal') {
-                wrapper.style.transform = `scale(${clampedPreview})`;
-            } else {
-                const activeSlot = vertArea.querySelector(`.virtual-page-slot[data-page-number="${currentReaderPage}"]`);
-                if (activeSlot) activeSlot.style.transform = `scale(${clampedPreview})`;
-            }
+            const targetEl = getActivePageElement();
+            targetEl.style.transform = `scale(${previewScale})`;
         }
     }, { passive: false });
 
     viewer.addEventListener('touchend', async (e) => {
         if (isPinching && e.touches.length < 2) {
             isPinching = false;
-            if (initialPinchDist && Math.abs(livePinchMultiplier - 1.0) > 0.06) {
+            const targetEl = getActivePageElement();
+
+            if (initialPinchDist && Math.abs(livePinchMultiplier - 1.0) > 0.05) {
                 userZoomMultiplier = Math.min(3.5, Math.max(1.0, userZoomMultiplier * livePinchMultiplier));
-                if (userZoomMultiplier < 1.08) userZoomMultiplier = 1.0;
-                wrapper.style.transform = 'scale(1)';
+                if (userZoomMultiplier < 1.06) userZoomMultiplier = 1.0;
+
+                targetEl.style.transform = 'scale(1)';
+                targetEl.style.transformOrigin = '0 0';
                 updateFitResetBadge();
-                if (scrollDirection === 'vertical') await setupVerticalVirtualReader();
-                else await renderSingleHorizontalPage(currentReaderPage);
+
+                const anchor = {
+                    clientX: pinchFocalClientX,
+                    clientY: pinchFocalClientY,
+                    ratioX: pinchPageRatioX,
+                    ratioY: pinchPageRatioY
+                };
+
+                if (scrollDirection === 'vertical') await setupVerticalVirtualReader(anchor);
+                else await renderSingleHorizontalPage(currentReaderPage, anchor);
             } else {
-                wrapper.style.transform = 'scale(1)';
-                const activeSlot = vertArea.querySelector(`.virtual-page-slot[data-page-number="${currentReaderPage}"]`);
-                if (activeSlot) activeSlot.style.transform = 'scale(1)';
+                targetEl.style.transform = 'scale(1)';
             }
             initialPinchDist = null;
             livePinchMultiplier = 1.0;
             return;
         }
 
+        // Exact Point Double-Tap Zoom
         if (e.changedTouches.length === 1) {
             const now = Date.now();
-            const dx = touchStartX - e.changedTouches[0].clientX;
-            const dy = Math.abs(touchStartY - e.changedTouches[0].clientY);
+            const tapX = e.changedTouches[0].clientX;
+            const tapY = e.changedTouches[0].clientY;
+            const dx = touchStartX - tapX;
+            const dy = Math.abs(touchStartY - tapY);
 
             if (Math.abs(dx) < 15 && dy < 15) {
                 if (now - lastTapTimestamp < 280) {
-                    userZoomMultiplier = userZoomMultiplier > 1.1 ? 1.0 : 2.0;
+                    const targetEl = getActivePageElement();
+                    const rect = targetEl.getBoundingClientRect();
+                    const anchor = {
+                        clientX: tapX,
+                        clientY: tapY,
+                        ratioX: Math.max(0, Math.min(1, (tapX - rect.left) / Math.max(1, rect.width))),
+                        ratioY: Math.max(0, Math.min(1, (tapY - rect.top) / Math.max(1, rect.height)))
+                    };
+
+                    userZoomMultiplier = userZoomMultiplier > 1.1 ? 1.0 : 2.25;
                     updateFitResetBadge();
-                    if (scrollDirection === 'vertical') setupVerticalVirtualReader();
-                    else renderSingleHorizontalPage(currentReaderPage);
+                    if (scrollDirection === 'vertical') setupVerticalVirtualReader(anchor);
+                    else renderSingleHorizontalPage(currentReaderPage, anchor);
                     lastTapTimestamp = 0;
                     return;
                 }
                 lastTapTimestamp = now;
             }
 
-            if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.05) {
+            if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.04) {
                 const sel = window.getSelection();
                 if (sel && sel.toString().trim().length > 0) return;
 
@@ -998,17 +1131,27 @@ function setupReaderGestures() {
         }
     }, { passive: true });
 
+    // Desktop Ctrl + Wheel Focal Zoom
     viewer.addEventListener('wheel', (e) => {
         if (e.ctrlKey) {
             e.preventDefault();
-            const delta = e.deltaY < 0 ? 0.2 : -0.2;
+            const targetEl = getActivePageElement();
+            const rect = targetEl.getBoundingClientRect();
+            const anchor = {
+                clientX: e.clientX,
+                clientY: e.clientY,
+                ratioX: Math.max(0, Math.min(1, (e.clientX - rect.left) / Math.max(1, rect.width))),
+                ratioY: Math.max(0, Math.min(1, (e.clientY - rect.top) / Math.max(1, rect.height)))
+            };
+
+            const delta = e.deltaY < 0 ? 0.25 : -0.25;
             userZoomMultiplier = Math.min(3.5, Math.max(1.0, userZoomMultiplier + delta));
             updateFitResetBadge();
-            if (scrollDirection === 'vertical') setupVerticalVirtualReader();
-            else renderSingleHorizontalPage(currentReaderPage);
+            if (scrollDirection === 'vertical') setupVerticalVirtualReader(anchor);
+            else renderSingleHorizontalPage(currentReaderPage, anchor);
             return;
         }
-        if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.05) {
+        if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.04) {
             if (Math.abs(e.deltaY) > 25) {
                 if (e.deltaY > 0) nextPage();
                 else prevPage();
@@ -1076,9 +1219,9 @@ async function loadFullPageTextIntoQuote() {
         const content = await page.getTextContent();
         const fullText = content.items.map(item => item.str).join(' ');
         document.getElementById('quoteEditTextarea').value = fullText;
-        showToast(`Loaded all text from Page ${currentReaderPage}`);
+        showToast(`Loaded text from Page ${currentReaderPage}`);
     } catch (e) {
-        showToast("Could not extract text from this page");
+        showToast("Could not extract text");
     }
 }
 
@@ -1086,7 +1229,7 @@ function closeQuoteModal() { document.getElementById('quoteModal').classList.add
 
 function saveQuoteConfirmed() {
     const text = document.getElementById('quoteEditTextarea').value.trim();
-    if (!text) return showToast("Please enter or select quote text");
+    if (!text) return showToast("Enter quote text");
     const book = appData.pdfs.find(p => p.id === activePdfId);
     appData.quotes.unshift({
         id: 'q_' + Date.now(),
@@ -1099,14 +1242,14 @@ function saveQuoteConfirmed() {
     if (window.getSelection) window.getSelection().removeAllRanges();
     saveMetadata();
     closeQuoteModal();
-    showToast("Quote saved to collection!");
+    showToast("Quote saved");
 }
 
 function copyQuoteText(idx) {
     const q = appData.quotes[idx];
     if (!q) return;
     navigator.clipboard.writeText(`"${q.text}" — ${q.bookName} (Page ${q.pageNo})`);
-    showToast("Quote copied to clipboard!");
+    showToast("Copied to clipboard");
 }
 
 function deleteQuoteItem(idx) {
@@ -1146,46 +1289,56 @@ async function executePdfInternalSearch() {
     }
 
     if (matches.length === 0) {
-        resultsBox.innerHTML = `<p class="text-xs text-neutral-500 text-center py-4">No matches found for "${escapeHtml(query)}"</p>`;
+        resultsBox.innerHTML = `<p class="text-xs text-neutral-500 text-center py-4">No matches found</p>`;
         return;
     }
 
     resultsBox.innerHTML = matches.map(m => `
-        <div onclick="closeReaderSearchModal(); scrubToPage(${m.page});" class="bg-neutral-800 hover:bg-neutral-700 p-3 rounded-xl cursor-pointer transition">
-            <div class="text-xs font-bold text-samsungBlue mb-1">Page ${m.page}</div>
-            <p class="text-xs text-neutral-300 line-clamp-2">...${escapeHtml(m.snippet)}...</p>
+        <div onclick="closeReaderSearchModal(); scrubToPage(${m.page});" class="bg-neutral-900 border border-neutral-800 hover:border-neutral-600 p-3 rounded-xl cursor-pointer transition">
+            <div class="text-xs font-bold text-white mb-1">Page ${m.page}</div>
+            <p class="text-xs text-neutral-400 line-clamp-2">...${escapeHtml(m.snippet)}...</p>
         </div>
     `).join('');
 }
 
 function toggleDarkModeInvert() {
     isDarkModeInverted = !isDarkModeInverted;
+    appData.isDarkModeInverted = isDarkModeInverted;
+    saveMetadata();
+
     const wrapper = document.getElementById('singlePageWrapper');
     const btn = document.getElementById('darkModeToggleBtn');
 
     if (isDarkModeInverted) {
         wrapper.classList.add('invert-pdf');
         document.querySelectorAll('.virtual-page-slot').forEach(el => el.classList.add('invert-pdf'));
-        btn.innerText = '☀️';
-        showToast("AMOLED Inverted Dark Mode On");
+        btn.innerHTML = MONO_ICONS.sun;
+        showToast("Inverted Dark Mode On");
     } else {
         wrapper.classList.remove('invert-pdf');
         document.querySelectorAll('.virtual-page-slot').forEach(el => el.classList.remove('invert-pdf'));
-        btn.innerText = '🌙';
+        btn.innerHTML = MONO_ICONS.moon;
         showToast("Original Page Colors On");
     }
 }
 
 function openPageSettingsModal() {
-    document.getElementById('btnScrollVert').className = `py-2.5 border rounded-xl text-sm font-medium transition ${scrollDirection === 'vertical' ? 'border-samsungBlue bg-samsungBlue/20 text-white' : 'border-neutral-700 text-neutral-400'}`;
-    document.getElementById('btnScrollHoriz').className = `py-2.5 border rounded-xl text-sm font-medium transition ${scrollDirection === 'horizontal' ? 'border-samsungBlue bg-samsungBlue/20 text-white' : 'border-neutral-700 text-neutral-400'}`;
+    document.getElementById('btnScrollVert').className = `py-2.5 border rounded-xl text-sm font-semibold transition ${scrollDirection === 'vertical' ? 'border-white bg-white text-black' : 'border-neutral-800 text-neutral-400'}`;
+    document.getElementById('btnScrollHoriz').className = `py-2.5 border rounded-xl text-sm font-semibold transition ${scrollDirection === 'horizontal' ? 'border-white bg-white text-black' : 'border-neutral-800 text-neutral-400'}`;
     document.getElementById('pageSettingsModal').classList.remove('hidden');
 }
 
 function closePageSettingsModal() { document.getElementById('pageSettingsModal').classList.add('hidden'); }
 
+// Persists Scroll Direction in LocalStorage & Syncs Both Modals
 async function setScrollDirection(dir) {
     scrollDirection = dir;
+    appData.scrollDirection = dir;
+    saveMetadata();
+
+    const defaultScrollEl = document.getElementById('defaultScrollSelect');
+    if (defaultScrollEl) defaultScrollEl.value = dir;
+
     userZoomMultiplier = 1.0;
     updateFitResetBadge();
     const horiz = document.getElementById('horizontalSlideArea');
@@ -1194,17 +1347,19 @@ async function setScrollDirection(dir) {
     if (dir === 'vertical') {
         horiz.classList.add('hidden');
         vert.classList.remove('hidden');
-        await setupVerticalVirtualReader();
+        if (activePdfDoc) await setupVerticalVirtualReader();
     } else {
         vert.classList.add('hidden');
         horiz.classList.remove('hidden');
-        await renderSingleHorizontalPage(currentReaderPage);
+        if (activePdfDoc) await renderSingleHorizontalPage(currentReaderPage);
     }
     closePageSettingsModal();
-    showToast(`Switched to ${dir} Fit-to-Screen`);
+    showToast(`Default scroll set to ${dir}`);
 }
 
 function setReaderBg(color) {
+    appData.readerBgColor = color;
+    saveMetadata();
     document.getElementById('pdfViewerContainer').style.backgroundColor = color;
     closePageSettingsModal();
 }
@@ -1224,7 +1379,7 @@ function selectFolderColor(color, el) {
 
 function confirmCreateFolder() {
     const name = document.getElementById('newFolderNameInput').value.trim();
-    if (!name) return showToast("Please enter a folder name");
+    if (!name) return showToast("Enter a folder name");
     appData.folders.push({
         id: 'folder_' + Date.now(),
         name: name,
@@ -1242,14 +1397,14 @@ function openManageFoldersModal() {
         box.innerHTML = `<p class="text-xs text-neutral-500 text-center py-4">No folders created yet</p>`;
     } else {
         box.innerHTML = appData.folders.map(f => `
-            <div class="flex items-center justify-between p-3 bg-neutral-800 rounded-xl">
+            <div class="flex items-center justify-between p-3 bg-neutral-900 border border-neutral-800 rounded-xl">
                 <div class="flex items-center space-x-2.5 truncate">
-                    <span class="w-3 h-3 rounded-full" style="background-color:${f.color}"></span>
+                    <span class="w-3 h-3 rounded-full border border-neutral-600" style="background-color:${f.color}"></span>
                     <span class="text-sm font-medium text-white truncate">${escapeHtml(f.name)}</span>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <button onclick="renameFolderPrompt('${f.id}')" class="text-xs text-samsungBlue font-semibold hover:underline">Rename</button>
-                    <button onclick="deleteFolderById('${f.id}')" class="text-xs text-red-400 font-semibold hover:underline">Delete</button>
+                <div class="flex items-center space-x-3">
+                    <button onclick="renameFolderPrompt('${f.id}')" class="text-xs text-neutral-300 hover:text-white font-semibold">Rename</button>
+                    <button onclick="deleteFolderById('${f.id}')" class="text-xs text-neutral-400 hover:text-white underline font-semibold">Delete</button>
                 </div>
             </div>
         `).join('');
@@ -1294,16 +1449,16 @@ function promptBulkMoveFolder() {
 
 function populateAssignFolderModal() {
     const box = document.getElementById('assignFolderListContainer');
-    let html = `<div onclick="executeFolderAssignment(null)" class="p-3 bg-neutral-800 hover:bg-neutral-700 rounded-xl cursor-pointer text-sm font-medium">🏠 None (Main Library)</div>`;
+    let html = `<div onclick="executeFolderAssignment(null)" class="p-3 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 rounded-xl cursor-pointer text-sm font-medium">Main Library (None)</div>`;
     html += appData.folders.map(f => `
-        <div onclick="executeFolderAssignment('${f.id}')" class="p-3 bg-neutral-800 hover:bg-neutral-700 rounded-xl cursor-pointer text-sm font-medium flex items-center space-x-2.5">
-            <span class="w-3 h-3 rounded-full" style="background-color:${f.color}"></span>
+        <div onclick="executeFolderAssignment('${f.id}')" class="p-3 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 rounded-xl cursor-pointer text-sm font-medium flex items-center space-x-2.5">
+            <span class="w-3 h-3 rounded-full border border-neutral-600" style="background-color:${f.color}"></span>
             <span>${escapeHtml(f.name)}</span>
         </div>
     `).join('');
     box.innerHTML = html;
     document.getElementById('assignFolderModal').classList.remove('hidden');
-}
+        }
 function closeAssignFolderModal() { document.getElementById('assignFolderModal').classList.add('hidden'); }
 
 function executeFolderAssignment(folderId) {
@@ -1348,7 +1503,7 @@ function bulkDeleteSelected() {
     appData.pdfs = remaining;
     saveMetadata();
     exitSelectMode();
-    showToast("Moved selected books to Trash");
+    showToast("Moved to Trash");
 }
 
 function toggleFavoriteBookFromList(pdfId) {
@@ -1373,7 +1528,7 @@ function closeSortModal() { document.getElementById('sortModal').classList.add('
 function applySortOrder(order) {
     appData.sortBy = order;
     const labels = { dateDesc: 'Sort: Latest', titleAsc: 'Sort: A-Z', titleDesc: 'Sort: Z-A', pagesDesc: 'Sort: Pages' };
-    document.getElementById('sortIndicatorLabel').innerHTML = `<span>${labels[order]}</span><span>⇅</span>`;
+    document.getElementById('sortIndicatorLabel').innerHTML = `<span>${labels[order]}</span>`;
     saveMetadata();
     renderWorkspace();
     closeSortModal();
@@ -1394,7 +1549,7 @@ function deleteActiveBook() {
         saveMetadata();
         toggleReaderMenu(false);
         closeReader();
-        showToast("Book moved to Trash");
+        showToast("Moved to Trash");
     }
 }
 
@@ -1467,7 +1622,11 @@ function toggleReaderMenu(open) {
     if (open) m.classList.remove('hidden'); else m.classList.add('hidden');
 }
 
-function openSettingsModal() { document.getElementById('settingsModal').classList.remove('hidden'); }
+function openSettingsModal() {
+    const defaultScrollEl = document.getElementById('defaultScrollSelect');
+    if (defaultScrollEl) defaultScrollEl.value = scrollDirection;
+    document.getElementById('settingsModal').classList.remove('hidden');
+}
 function closeSettingsModal() { document.getElementById('settingsModal').classList.add('hidden'); }
 
 function shareActiveBook() {
@@ -1475,7 +1634,7 @@ function shareActiveBook() {
     if (p && navigator.share) {
         navigator.share({ title: p.title, text: `Reading "${p.title}" on ReadIT` }).catch(() => {});
     } else {
-        showToast("Book title copied to clipboard");
+        showToast("Title copied to clipboard");
     }
 }
 
@@ -1488,7 +1647,9 @@ function clearAllData() {
     if (!confirm("Reset all folders, PDFs, and saved quotes in ReadIT?")) return;
     try { localStorage.removeItem('samsung_reader_meta_v2'); } catch(e) {}
     memoryPdfStore.clear();
-    appData = { folders: [], pdfs: [], quotes: [], trash: [], sortBy: 'dateDesc', viewMode: 'list', isAppInstalled: false };
+    appData = { folders: [], pdfs: [], quotes: [], trash: [], sortBy: 'dateDesc', viewMode: 'list', scrollDirection: 'horizontal', readerBgColor: '#000000', isDarkModeInverted: false, isAppInstalled: false };
+    scrollDirection = 'horizontal';
+    isDarkModeInverted = false;
     navigateView('home');
     showToast("All ReadIT data reset");
 }
