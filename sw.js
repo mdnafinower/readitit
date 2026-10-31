@@ -1,6 +1,5 @@
-const CACHE_NAME = 'readit-offline-v1';
+const CACHE_NAME = 'readit-smart-cache-v1';
 
-// যে ফাইলগুলো অফলাইনের জন্য ফোনে সেভ হয়ে থাকবে
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -13,16 +12,15 @@ const ASSETS_TO_CACHE = [
     'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'
 ];
 
-// Install Event: সব ফাইল ক্যাশ মেমোরিতে সেভ করা
 self.addEventListener('install', (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(ASSETS_TO_CACHE);
-        }).then(() => self.skipWaiting())
+        })
     );
 });
 
-// Activate Event: পুরনো ক্যাশ ডিলিট করা
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) => {
@@ -33,23 +31,46 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Fetch Event: নেট না থাকলে ক্যাশ মেমোরি থেকে ফাইল দেওয়া
 self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-            return fetch(event.request).then((networkResponse) => {
-                // নতুন কোনো ফন্ট বা স্ক্রিপ্ট আসলে সেটিও ক্যাশে সেভ করে রাখা
-                if (networkResponse && networkResponse.status === 200) {
-                    const responseClone = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseClone);
+    if (event.request.method !== 'GET') return;
+
+    const url = new URL(event.request.url);
+    const isLocalAppFile = url.origin === self.location.origin;
+
+    if (isLocalAppFile) {
+        event.respondWith(
+            fetch(event.request)
+                .then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseClone);
+                        });
+                    }
+                    return networkResponse;
+                })
+                .catch(() => {
+                    return caches.match(event.request).then((cachedResponse) => {
+                        return cachedResponse || caches.match('./index.html');
                     });
+                })
+        );
+    } else {
+        event.respondWith(
+            caches.match(event.request).then((cachedResponse) => {
+                if (cachedResponse) {
+                    return cachedResponse;
                 }
-                return networkResponse;
-            });
-        })
-    );
+                return fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseClone);
+                        });
+                    }
+                    return networkResponse;
+                });
+            })
+        );
+    }
 });
