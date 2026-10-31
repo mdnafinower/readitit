@@ -1,0 +1,18 @@
+{
+  "name": "ReadIT PDF Reader",
+  "short_name": "ReadIT",
+  "description": "Minimal Monochrome AMOLED PDF Reader & Quote Saver",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='115' fill='%23FFFFFF'/%3E%3Cg transform='translate(46, 36) scale(3.5)'%3E%3Crect x='14' y='8' width='22' height='75' rx='5' fill='%23111111'/%3E%3Crect x='14' y='18' width='22' height='4' fill='%23E5E5E5'/%3E%3Crect x='14' y='26' width='22' height='4' fill='%23E5E5E5'/%3E%3Crect x='14' y='68' width='22' height='4.5' fill='%23E5E5E5'/%3E%3Crect x='42' y='8' width='22' height='75' rx='5' fill='%23222222'/%3E%3Crect x='42' y='18' width='22' height='4' fill='%23E5E5E5'/%3E%3Crect x='42' y='26' width='22' height='4' fill='%23E5E5E5'/%3E%3Crect x='42' y='68' width='22' height='4.5' fill='%23E5E5E5'/%3E%3Cg transform='rotate(-12 85 45)'%3E%3Crect x='74' y='8' width='22' height='75' rx='5' fill='%23000000'/%3E%3Crect x='74' y='18' width='22' height='4' fill='%23E5E5E5'/%3E%3Crect x='74' y='26' width='22' height='4' fill='%23E5E5E5'/%3E%3Crect x='74' y='68' width='22' height='4.5' fill='%23E5E5E5'/%3E%3C/g%3E%3Ctext x='60' y='114' font-family='Arial, sans-serif' font-weight='900' font-size='27' text-anchor='middle' fill='%23000000'%3EReadIT%3C/text%3E%3C/g%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
