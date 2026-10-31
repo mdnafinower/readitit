@@ -39,7 +39,6 @@ let scrollDirection = 'horizontal';
 let isDarkModeInverted = false;
 let readerUiVisible = true;
 
-// Advanced Zoom & Geometry State
 let baseFitScale = 1.0;
 let basePageWidth = 0;
 let basePageHeight = 0;
@@ -47,8 +46,8 @@ let userZoomMultiplier = 1.0;
 let verticalObserver = null;
 let activeRenderTask = null;
 let sharpRenderDebounceTimer = null;
+let isRestoringPosition = false;
 
-// Gesture & Matrix Pinch State
 let touchStartX = 0;
 let touchStartY = 0;
 let isPinching = false;
@@ -57,7 +56,6 @@ let pinchStartZoom = 1.0;
 let pinchDocPointX = 0;
 let pinchDocPointY = 0;
 let pinchTargetSlot = null;
-let pinchSlotStartOffsetTop = 0;
 let lastTapTimestamp = 0;
 let deferredInstallPrompt = null;
 
@@ -629,7 +627,6 @@ function renderTrashList() {
     `).join('');
 }
 
-// --- CORE FIT-TO-SCREEN & ZERO-JUMP GEOMETRY ENGINE ---
 function computeFitToScreenScale(page, mode) {
     const unscaledVp = page.getViewport({ scale: 1.0 });
     const viewer = document.getElementById('pdfViewerContainer');
@@ -653,7 +650,6 @@ function getSafeRetinaDPR(viewportWidth, viewportHeight) {
     return Math.max(1, Math.min(rawDpr, maxAllowedDprW, maxAllowedDprH));
 }
 
-// Updates page margins dynamically so zooming never jumps due to flexbox layout switching
 function updateHorizontalCenteringMargins(width, height) {
     const horizArea = document.getElementById('horizontalSlideArea');
     const wrapper = document.getElementById('singlePageWrapper');
@@ -717,7 +713,9 @@ async function openReader(pdfId) {
         const loadingTask = pdfjsLib.getDocument({ data: binaryData });
         activePdfDoc = await loadingTask.promise;
         totalReaderPages = activePdfDoc.numPages;
-        currentReaderPage = pdfMeta.lastPage && pdfMeta.lastPage <= totalReaderPages ? pdfMeta.lastPage : 1;
+        
+        // Exact Last Read Page Recovery Fix
+        currentReaderPage = pdfMeta.lastPage && pdfMeta.lastPage >= 1 && pdfMeta.lastPage <= totalReaderPages ? pdfMeta.lastPage : 1;
 
         document.getElementById('totalPagesIndicator').innerText = totalReaderPages;
         const scrubber = document.getElementById('pageScrubberInput');
@@ -750,7 +748,6 @@ function closeReader() {
     renderWorkspace();
 }
 
-// Double-Buffered Horizontal Rendering (Preserves exact scroll & visual state)
 async function renderSingleHorizontalPage(pageNum, preserveScroll = false) {
     if (!activePdfDoc) return;
     currentReaderPage = pageNum;
@@ -783,7 +780,6 @@ async function renderSingleHorizontalPage(pageNum, preserveScroll = false) {
         const savedScrollL = horizArea.scrollLeft;
         const savedScrollT = horizArea.scrollTop;
 
-        // Render offscreen first so canvas never flickers blank
         const offCanvas = document.createElement('canvas');
         offCanvas.width = Math.floor(viewport.width * dpr);
         offCanvas.height = Math.floor(viewport.height * dpr);
@@ -836,8 +832,8 @@ async function renderSingleHorizontalPage(pageNum, preserveScroll = false) {
     } catch (e) {}
 }
 
-// In-Place Vertical Virtual Reader (Never destroys DOM during zoom)
-async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
+// Advanced Vertical Reader with Exact Center Viewport Intersection Tracking
+async function setupVerticalVirtualReader(restoreSavedPage = true) {
     if (!activePdfDoc) return;
     const vertArea = document.getElementById('verticalScrollArea');
     const zoomPct = Math.round(userZoomMultiplier * 100);
@@ -852,12 +848,8 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
     const finalCssScale = baseFitScale * userZoomMultiplier;
     const defaultVp = firstPage.getViewport({ scale: finalCssScale });
 
-    // If slots already exist and we are just sharpening after a pinch-zoom, update in-place without rebuilding DOM!
     const existingSlots = vertArea.querySelectorAll('.virtual-page-slot');
-    if (inPlaceZoomUpdate && existingSlots.length === totalReaderPages) {
-        const savedScrollL = vertArea.scrollLeft;
-        const savedScrollT = vertArea.scrollTop;
-
+    if (existingSlots.length === totalReaderPages && !restoreSavedPage) {
         existingSlots.forEach(slot => {
             slot.style.width = `${defaultVp.width}px`;
             slot.style.height = `${defaultVp.height}px`;
@@ -869,10 +861,6 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
             slot.dataset.rendered = 'false';
         });
 
-        vertArea.scrollLeft = savedScrollL;
-        vertArea.scrollTop = savedScrollT;
-
-        // Re-render current visible page & neighbors in crisp HD
         const pagesToSharpen = [currentReaderPage, currentReaderPage - 1, currentReaderPage + 1];
         for (const pNum of pagesToSharpen) {
             if (pNum >= 1 && pNum <= totalReaderPages) {
@@ -904,32 +892,59 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
         vertArea.appendChild(pageSlot);
     }
 
+    // Precise Center-Point Intersection Tracker to eliminate page number flickering
     verticalObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const slot = entry.target;
-                const pNum = parseInt(slot.dataset.pageNumber, 10);
-                currentReaderPage = pNum;
-                document.getElementById('currentPageIndicator').innerText = pNum;
-                document.getElementById('pageScrubberInput').value = pNum;
-                saveLastReadPage(pNum);
+        if (isRestoringPosition) return;
 
+        let mostVisiblePage = currentReaderPage;
+        let maxVisibleArea = 0;
+
+        entries.forEach(entry => {
+            const slot = entry.target;
+            const pNum = parseInt(slot.dataset.pageNumber, 10);
+            
+            if (entry.isIntersecting) {
                 if (slot.dataset.rendered === 'false' && !isPinching) {
                     slot.dataset.rendered = 'true';
                     renderVirtualPageSlot(pNum, slot);
                 }
+
+                const rect = entry.boundingClientRect;
+                const viewH = window.innerHeight;
+                const visibleTop = Math.max(0, rect.top);
+                const visibleBottom = Math.min(viewH, rect.bottom);
+                const visibleArea = Math.max(0, visibleBottom - visibleTop);
+
+                if (visibleArea > maxVisibleArea) {
+                    maxVisibleArea = visibleArea;
+                    mostVisiblePage = pNum;
+                }
             }
         });
+
+        if (mostVisiblePage !== currentReaderPage) {
+            currentReaderPage = mostVisiblePage;
+            document.getElementById('currentPageIndicator').innerText = currentReaderPage;
+            document.getElementById('pageScrubberInput').value = currentReaderPage;
+            saveLastReadPage(currentReaderPage);
+        }
     }, {
         root: vertArea,
-        rootMargin: '500px 0px',
-        threshold: 0.05
+        rootMargin: '-20% 0px -20% 0px', // Tracks the exact center window of the screen
+        threshold: [0.1, 0.3, 0.5]
     });
 
     document.querySelectorAll('.virtual-page-slot').forEach(slot => verticalObserver.observe(slot));
 
-    const targetSlot = vertArea.querySelector(`[data-page-number="${currentReaderPage}"]`);
-    if (targetSlot) targetSlot.scrollIntoView();
+    // Restore to exact saved page position on book open
+    isRestoringPosition = true;
+    setTimeout(() => {
+        const targetSlot = vertArea.querySelector(`[data-page-number="${currentReaderPage}"]`);
+        if (targetSlot) {
+            targetSlot.scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
+        setTimeout(() => { isRestoringPosition = false; }, 200);
+    }, 50);
 }
 
 async function renderVirtualPageSlot(pageNum, slotEl) {
@@ -944,7 +959,6 @@ async function renderVirtualPageSlot(pageNum, slotEl) {
         const canvas = slotEl.querySelector('canvas');
         const textDiv = slotEl.querySelector('.textLayer');
 
-        // Offscreen render to prevent blank flash
         const offCanvas = document.createElement('canvas');
         offCanvas.width = Math.floor(vp.width * dpr);
         offCanvas.height = Math.floor(vp.height * dpr);
@@ -981,7 +995,7 @@ async function renderVirtualPageSlot(pageNum, slotEl) {
 
 function saveLastReadPage(pageNum) {
     const p = appData.pdfs.find(x => x.id === activePdfId);
-    if (p) {
+    if (p && pageNum >= 1 && pageNum <= totalReaderPages) {
         p.lastPage = pageNum;
         saveMetadata();
     }
@@ -990,7 +1004,7 @@ function saveLastReadPage(pageNum) {
 function resetZoomToFit() {
     userZoomMultiplier = 1.0;
     updateFitResetBadge();
-    if (scrollDirection === 'vertical') setupVerticalVirtualReader(true);
+    if (scrollDirection === 'vertical') setupVerticalVirtualReader(false);
     else renderSingleHorizontalPage(currentReaderPage, false);
 }
 
@@ -1061,7 +1075,6 @@ function applyInstantLiveZoom(newZoom, focalScreenX, focalScreenY) {
         const canvas = document.getElementById('pdfCanvas');
         const textLayer = document.getElementById('singleTextLayer');
 
-        // Hide text layer temporarily while actively pinching for 60fps smoothness
         textLayer.style.display = 'none';
 
         wrapper.style.width = `${newW}px`;
@@ -1110,7 +1123,7 @@ function scheduleSharpCanvasReRender() {
     sharpRenderDebounceTimer = setTimeout(async () => {
         if (isPinching || !activePdfDoc) return;
         if (scrollDirection === 'vertical') {
-            await setupVerticalVirtualReader(true);
+            await setupVerticalVirtualReader(false);
         } else {
             await renderSingleHorizontalPage(currentReaderPage, true);
         }
@@ -1183,7 +1196,6 @@ function setupReaderGestures() {
             return;
         }
 
-        // Smooth Focal Double-Tap Zoom
         if (e.changedTouches.length === 1 && !isPinching) {
             const now = Date.now();
             const tapX = e.changedTouches[0].clientX;
@@ -1216,7 +1228,6 @@ function setupReaderGestures() {
                 lastTapTimestamp = now;
             }
 
-            // Horizontal Swipe to Turn Page (Only when not zoomed in)
             if (scrollDirection === 'horizontal' && userZoomMultiplier <= 1.03) {
                 const sel = window.getSelection();
                 if (sel && sel.toString().trim().length > 0) return;
@@ -1229,7 +1240,6 @@ function setupReaderGestures() {
         }
     }, { passive: true });
 
-    // Desktop Trackpad Pinch / Ctrl + Wheel Zoom
     viewer.addEventListener('wheel', (e) => {
         if (e.ctrlKey) {
             e.preventDefault();
@@ -1390,7 +1400,7 @@ async function executePdfInternalSearch() {
     }
 
     if (matches.length === 0) {
-        resultsBox.innerHTML = `<p class="text-xs text-neutral-500 text-center py-4">No matches found</p>`;
+        resultsBox.innerHTML = `<p class="text-xs text-neutral-400 text-center py-4">No matches found</p>`;
         return;
     }
 
