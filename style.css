@@ -70,10 +70,30 @@ body {
     will-change: transform, width, height;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
+    flex-shrink: 0 !important;
 }
 
-#horizontalSlideArea,
+/* Critical Fix: Block layout prevents flex-col squishing & offsetTop miscalculation */
 #verticalScrollArea {
+    display: block !important;
     touch-action: pan-x pan-y;
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: auto !important;
+    overflow-anchor: none !important;
+}
+
+#verticalScrollArea.hidden {
+    display: none !important;
+}
+
+#horizontalSlideArea {
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+    overflow-anchor: none !important;
+}
+
+.virtual-page-slot {
+    flex-shrink: 0 !important;
+    margin-bottom: 14px !important;
+    overflow-anchor: none !important;
 }
