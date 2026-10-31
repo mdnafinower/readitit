@@ -17,12 +17,12 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #333333; border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: #555555; }
 
-/* Authentic PDF.js TextLayer Styling for ultra clear text selection */
+/* Authentic PDF.js TextLayer Styling */
 .textLayer {
     position: absolute;
     text-align: initial;
@@ -56,15 +56,16 @@ body {
 }
 
 .textLayer ::selection {
-    background: rgba(33, 147, 230, 0.45);
+    background: rgba(120, 120, 120, 0.45);
     color: transparent;
 }
 
 .invert-pdf {
-    filter: invert(100%) hue-rotate(180deg) contrast(95%);
+    filter: invert(100%) hue-rotate(180deg) contrast(96%);
 }
 
+/* Focal-Point Hardware Accelerated Zoom Target */
 .pinch-zoom-target {
-    transform-origin: center center;
+    transform-origin: 0 0;
     will-change: transform;
 }
