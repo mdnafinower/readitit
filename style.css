@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+* {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #000000;
+    color: #FFFFFF;
+    user-select: none;
+    overflow: hidden;
+    overscroll-behavior-y: none;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333333; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #555555; }
+
+/* Authentic PDF.js TextLayer Styling for ultra clear text selection */
+.textLayer {
+    position: absolute;
+    text-align: initial;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    opacity: 1;
+    line-height: 1.0;
+    -webkit-text-size-adjust: none;
+    -moz-text-size-adjust: none;
+    text-size-adjust: none;
+    forced-color-adjust: none;
+    transform-origin: 0 0;
+    z-index: 20;
+    pointer-events: auto;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.textLayer span,
+.textLayer br {
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.textLayer ::selection {
+    background: rgba(33, 147, 230, 0.45);
+    color: transparent;
+}
+
+.invert-pdf {
+    filter: invert(100%) hue-rotate(180deg) contrast(95%);
+}
+
+.pinch-zoom-target {
+    transform-origin: center center;
+    will-change: transform;
+}
