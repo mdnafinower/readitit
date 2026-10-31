@@ -39,7 +39,6 @@ let scrollDirection = 'horizontal';
 let isDarkModeInverted = false;
 let readerUiVisible = true;
 
-// Advanced Zoom & Geometry State
 let baseFitScale = 1.0;
 let basePageWidth = 0;
 let basePageHeight = 0;
@@ -50,7 +49,6 @@ let sharpRenderDebounceTimer = null;
 let isRestoringPosition = false;
 let scrollTickScheduled = false;
 
-// Gesture & Matrix Pinch State
 let touchStartX = 0;
 let touchStartY = 0;
 let isPinching = false;
@@ -271,7 +269,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     const fileInput = document.getElementById('pdfFileInput');
     fileInput.addEventListener('change', handleFileInputSelection);
 
-    // Attach Precision Center-Line Scroll Listener for Vertical Mode
     const vertArea = document.getElementById('verticalScrollArea');
     vertArea.addEventListener('scroll', handleVerticalScrollTracking, { passive: true });
 
@@ -322,7 +319,6 @@ async function handleFileInputSelection(event) {
             const cleanTitle = file.name.replace(/\.[^/.]+$/, "");
             const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
 
-            // Guaranteed to start at Page 1 with 0 offset when newly imported
             appData.pdfs.unshift({
                 id: newId,
                 title: cleanTitle,
@@ -637,7 +633,6 @@ function renderTrashList() {
     `).join('');
 }
 
-// --- CORE FIT-TO-SCREEN & ZERO-JUMP GEOMETRY ENGINE ---
 function computeFitToScreenScale(page, mode) {
     const unscaledVp = page.getViewport({ scale: 1.0 });
     const viewer = document.getElementById('pdfViewerContainer');
@@ -678,7 +673,6 @@ function updateHorizontalCenteringMargins(width, height) {
     wrapper.style.marginBottom = `${marginY}px`;
 }
 
-// --- PRECISION READER INITIALIZATION & EXACT RESUME ---
 async function openReader(pdfId) {
     const pdfMeta = appData.pdfs.find(p => p.id === pdfId);
     if (!pdfMeta) return;
@@ -693,7 +687,6 @@ async function openReader(pdfId) {
     const horiz = document.getElementById('horizontalSlideArea');
     const vert = document.getElementById('verticalScrollArea');
 
-    // Immediately reset residual scroll positions from any previously opened book
     horiz.scrollTop = 0;
     horiz.scrollLeft = 0;
     vert.scrollTop = 0;
@@ -734,7 +727,6 @@ async function openReader(pdfId) {
         activePdfDoc = await loadingTask.promise;
         totalReaderPages = activePdfDoc.numPages;
 
-        // Strictly validate saved page number
         const savedPage = parseInt(pdfMeta.lastPage, 10);
         currentReaderPage = (!isNaN(savedPage) && savedPage >= 1 && savedPage <= totalReaderPages) ? savedPage : 1;
 
@@ -761,7 +753,6 @@ async function openReader(pdfId) {
 
 function closeReader() {
     clearTimeout(sharpRenderDebounceTimer);
-    // Final synchronous save of current page before closing
     if (activePdfDoc && scrollDirection === 'vertical') {
         detectCurrentVerticalPageFromCenterLine();
     }
@@ -861,8 +852,7 @@ async function renderSingleHorizontalPage(pageNum, preserveScroll = false) {
     } catch (e) {}
 }
 
-// --- LASER-ACCURATE VERTICAL READER & CENTER-LINE PAGE DETECTOR ---
-async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
+async function setupVerticalVirtualReader(restoreSavedPage = true) {
     if (!activePdfDoc) return;
     const vertArea = document.getElementById('verticalScrollArea');
     const zoomPct = Math.round(userZoomMultiplier * 100);
@@ -877,12 +867,8 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
     const finalCssScale = baseFitScale * userZoomMultiplier;
     const defaultVp = firstPage.getViewport({ scale: finalCssScale });
 
-    // In-place sharpening after pinch-zoom (never destroys DOM or loses scroll position)
     const existingSlots = vertArea.querySelectorAll('.virtual-page-slot');
-    if (inPlaceZoomUpdate && existingSlots.length === totalReaderPages) {
-        const savedScrollL = vertArea.scrollLeft;
-        const savedScrollT = vertArea.scrollTop;
-
+    if (existingSlots.length === totalReaderPages && !restoreSavedPage) {
         existingSlots.forEach(slot => {
             slot.style.width = `${defaultVp.width}px`;
             slot.style.height = `${defaultVp.height}px`;
@@ -893,9 +879,6 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
             }
             slot.dataset.rendered = 'false';
         });
-
-        vertArea.scrollLeft = savedScrollL;
-        vertArea.scrollTop = savedScrollT;
 
         const pagesToSharpen = [currentReaderPage, currentReaderPage - 1, currentReaderPage + 1];
         for (const pNum of pagesToSharpen) {
@@ -910,7 +893,6 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
         return;
     }
 
-    // Full initial build when opening a book
     isRestoringPosition = true;
     vertArea.innerHTML = '';
     if (verticalRenderObserver) verticalRenderObserver.disconnect();
@@ -932,7 +914,6 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
     }
     vertArea.appendChild(fragment);
 
-    // Observer is ONLY used for lazy canvas rendering (NEVER for page number guessing!)
     verticalRenderObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -952,7 +933,6 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
 
     vertArea.querySelectorAll('.virtual-page-slot').forEach(slot => verticalRenderObserver.observe(slot));
 
-    // Deterministic Scroll Restoration to exact saved page & offset
     const pdfMeta = appData.pdfs.find(p => p.id === activePdfId);
     const targetPage = currentReaderPage;
     const savedRatio = (pdfMeta && pdfMeta.lastPage === targetPage && pdfMeta.lastPageOffsetRatio) ? pdfMeta.lastPageOffsetRatio : 0;
@@ -969,7 +949,6 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
                 }
             }
 
-            // Pre-render target page immediately
             const activeSlot = vertArea.querySelector(`.virtual-page-slot[data-page-number="${targetPage}"]`);
             if (activeSlot && activeSlot.dataset.rendered === 'false') {
                 activeSlot.dataset.rendered = 'true';
@@ -986,7 +965,6 @@ async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
     });
 }
 
-// 100% Deterministic Viewport Center-Line Page Detector
 function handleVerticalScrollTracking() {
     if (currentView !== 'reader' || scrollDirection !== 'vertical' || isRestoringPosition || isPinching) return;
     if (!scrollTickScheduled) {
@@ -1007,19 +985,16 @@ function detectCurrentVerticalPageFromCenterLine() {
     const scrollTop = vertArea.scrollTop;
     const viewHeight = vertArea.clientHeight || window.innerHeight;
 
-    // Edge Case 1: At the very top of the document -> Always Page 1
     if (scrollTop <= 20) {
         updateDetectedVerticalPage(1, 0);
         return;
     }
 
-    // Edge Case 2: At the very bottom of the document -> Always Last Page
     if (scrollTop + viewHeight >= vertArea.scrollHeight - 20) {
         updateDetectedVerticalPage(totalReaderPages, 0);
         return;
     }
 
-    // Standard Case: Find which page contains the vertical center line of the screen (42% from top)
     const probeLineY = scrollTop + (viewHeight * 0.42);
     let bestPage = currentReaderPage;
     let bestOffsetRatio = 0;
@@ -1038,7 +1013,6 @@ function detectCurrentVerticalPageFromCenterLine() {
             break;
         }
 
-        // Fallback if probeLineY lands inside the 14px margin between two pages
         const centerDist = Math.abs(((top + bottom) / 2) - probeLineY);
         if (centerDist < minDistance) {
             minDistance = centerDist;
@@ -1082,7 +1056,6 @@ async function renderVirtualPageSlot(pageNum, slotEl) {
             transform: [dpr, 0, 0, dpr, 0, 0]
         }).promise;
 
-        // Only update height if difference is significant so scroll offsets never jump
         if (Math.abs(slotEl.offsetHeight - vp.height) > 2) {
             slotEl.style.height = `${vp.height}px`;
         }
@@ -1201,7 +1174,6 @@ function jumpToPagePrompt() {
     else showToast("Invalid page number");
 }
 
-// --- ADVANCED ZERO-JUMP FOCAL MATRIX ZOOM ENGINE ---
 function applyInstantLiveZoom(newZoom, focalScreenX, focalScreenY) {
     userZoomMultiplier = Math.min(4.0, Math.max(1.0, newZoom));
     updateFitResetBadge();
@@ -1263,7 +1235,6 @@ function scheduleSharpCanvasReRender() {
     sharpRenderDebounceTimer = setTimeout(async () => {
         if (isPinching || !activePdfDoc) return;
         if (scrollDirection === 'vertical') {
-            // Fixed: Pass true so it updates in-place instead of wiping DOM!
             await setupVerticalVirtualReader(true);
         } else {
             await renderSingleHorizontalPage(currentReaderPage, true);
