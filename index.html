@@ -173,13 +173,13 @@
                 <button id="resetFitBtn" onclick="resetZoomToFit()" class="hidden px-2.5 py-1 bg-white text-black rounded-lg text-[11px] font-bold transition">
                     100% Fit
                 </button>
-                <button onclick="toggleDarkModeInvert()" id="darkModeToggleBtn" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="Invert Page Colors">
+                <button onclick="toggleDarkModeInvert()" id="darkModeToggleBtn" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="Invert Colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
                 </button>
-                <button onclick="openReaderSearchModal()" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="Search in PDF">
+                <button onclick="openReaderSearchModal()" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="Search">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </button>
-                <button onclick="toggleReaderMenu(true)" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="More Reader Options">
+                <button onclick="toggleReaderMenu(true)" class="p-2 rounded-xl hover:bg-neutral-900 text-white transition" title="Menu">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg>
                 </button>
             </div>
@@ -237,7 +237,6 @@
         
         <div class="flex items-center justify-between mb-6 flex-shrink-0">
             <div class="flex items-center space-x-3">
-                <!-- Minimal Monochrome ReadIT Logo -->
                 <div class="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-md flex-shrink-0">
                     <svg viewBox="0 0 120 100" class="w-full h-full">
                         <rect x="14" y="10" width="22" height="80" rx="5" fill="#111111"/>
@@ -315,7 +314,7 @@
         </div>
     </div>
 
-    <!-- ================= MODALS (MONOCHROME B&W) ================= -->
+    <!-- ================= MODALS ================= -->
     <div id="homeMenuModal" onclick="if(event.target === this) toggleHomeMenu(false)" class="fixed inset-0 z-50 bg-black/50 hidden flex items-start justify-end p-4 pt-16">
         <div class="bg-neutral-950 border border-neutral-800 w-56 rounded-2xl p-2 shadow-2xl space-y-1">
             <button onclick="toggleHomeMenu(false); enterSelectMode()" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center justify-between">
@@ -377,7 +376,7 @@
                 <button onclick="printActiveBook()" class="p-2 hover:bg-neutral-900 rounded-xl transition text-neutral-300 hover:text-white" title="Print">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                 </button>
-                <button onclick="deleteActiveBook()" class="p-2 hover:bg-neutral-900 rounded-xl text-neutral-400 hover:text-white transition" title="Move to Trash">
+                <button onclick="deleteActiveBook()" class="p-2 hover:bg-neutral-900 rounded-xl text-neutral-400 hover:text-white transition" title="Trash">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                 </button>
             </div>
@@ -433,7 +432,6 @@
         </div>
     </div>
 
-    <!-- Create Folder Modal (Monochrome Shade Picker) -->
     <div id="createFolderModal" onclick="if(event.target === this) closeCreateFolderModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
         <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
             <h3 class="text-lg font-bold">Create New Folder</h3>
@@ -491,7 +489,6 @@
         </div>
     </div>
 
-    <!-- Settings Modal with Synced Default Scroll Select -->
     <div id="settingsModal" onclick="if(event.target === this) closeSettingsModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
         <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
             <h3 class="text-lg font-bold">ReadIT Settings</h3>
@@ -554,11 +551,11 @@
 
     <script src="script.js"></script>
     <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').catch(() => {});
-        });
-    }
-</script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>
