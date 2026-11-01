@@ -193,35 +193,70 @@ function saveMetadata() {
     } catch (e) {}
 }
 
-function setupDynamicPWA() {
+function generatePngIconDataUrl(size) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const svgBlob = new Blob([READIT_LOGO_SVG], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, size, size);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve('');
+        img.src = url;
+    });
+}
+
+async function setupDynamicPWA() {
     try {
-        const iconUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(READIT_LOGO_SVG);
+        const icon192 = await generatePngIconDataUrl(192);
+        const icon512 = await generatePngIconDataUrl(512);
+
         const fav = document.createElement('link');
         fav.rel = 'icon';
-        fav.href = iconUrl;
+        fav.href = icon192;
         document.head.appendChild(fav);
 
         const appleIcon = document.createElement('link');
         appleIcon.rel = 'apple-touch-icon';
-        appleIcon.href = iconUrl;
+        appleIcon.href = icon192;
         document.head.appendChild(appleIcon);
 
+        const startUrl = window.location.origin + window.location.pathname;
+
         const manifest = {
-            name: "ReadIT",
+            id: startUrl,
+            name: "ReadIT PDF Reader",
             short_name: "ReadIT",
             description: "ReadIT - Minimal Monochrome AMOLED PDF Reader",
-            start_url: window.location.href,
+            start_url: startUrl,
+            scope: startUrl,
             display: "standalone",
             background_color: "#000000",
             theme_color: "#000000",
-            icons: [{
-                src: iconUrl,
-                sizes: "512x512",
-                type: "image/svg+xml",
-                purpose: "any maskable"
-            }]
+            orientation: "portrait-primary",
+            icons: [
+                {
+                    src: icon192,
+                    sizes: "192x192",
+                    type: "image/png",
+                    purpose: "any maskable"
+                },
+                {
+                    src: icon512,
+                    sizes: "512x512",
+                    type: "image/png",
+                    purpose: "any maskable"
+                }
+            ]
         };
-        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
         const link = document.createElement('link');
         link.rel = 'manifest';
         link.href = URL.createObjectURL(blob);
@@ -231,6 +266,8 @@ function setupDynamicPWA() {
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredInstallPrompt = e;
+        const btn = document.getElementById('drawerDownloadAppBtn');
+        if (btn) btn.style.display = 'flex';
     });
 
     window.addEventListener('appinstalled', () => {
@@ -852,7 +889,7 @@ async function renderSingleHorizontalPage(pageNum, preserveScroll = false) {
     } catch (e) {}
 }
 
-async function setupVerticalVirtualReader(restoreSavedPage = true) {
+async function setupVerticalVirtualReader(inPlaceZoomUpdate = false) {
     if (!activePdfDoc) return;
     const vertArea = document.getElementById('verticalScrollArea');
     const zoomPct = Math.round(userZoomMultiplier * 100);
@@ -868,7 +905,10 @@ async function setupVerticalVirtualReader(restoreSavedPage = true) {
     const defaultVp = firstPage.getViewport({ scale: finalCssScale });
 
     const existingSlots = vertArea.querySelectorAll('.virtual-page-slot');
-    if (existingSlots.length === totalReaderPages && !restoreSavedPage) {
+    if (inPlaceZoomUpdate && existingSlots.length === totalReaderPages) {
+        const savedScrollL = vertArea.scrollLeft;
+        const savedScrollT = vertArea.scrollTop;
+
         existingSlots.forEach(slot => {
             slot.style.width = `${defaultVp.width}px`;
             slot.style.height = `${defaultVp.height}px`;
@@ -879,6 +919,9 @@ async function setupVerticalVirtualReader(restoreSavedPage = true) {
             }
             slot.dataset.rendered = 'false';
         });
+
+        vertArea.scrollLeft = savedScrollL;
+        vertArea.scrollTop = savedScrollT;
 
         const pagesToSharpen = [currentReaderPage, currentReaderPage - 1, currentReaderPage + 1];
         for (const pNum of pagesToSharpen) {
