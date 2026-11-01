@@ -382,18 +382,25 @@
         </div>
     </div>
 
-    <div id="readerSearchModal" onclick="if(event.target === this) closeReaderSearchModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-start justify-center p-4 pt-16">
-        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-bold">Search Inside Document</h3>
-                <button onclick="closeReaderSearchModal()" class="text-neutral-400 hover:text-white text-sm">✕</button>
+    <div id="createFolderModal" onclick="if(event.target === this) closeCreateFolderModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+            <h3 class="text-lg font-bold">Create New Folder</h3>
+            <input type="text" id="newFolderNameInput" onkeydown="if(event.key==='Enter') confirmCreateFolder()" placeholder="Enter folder name..." class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white">
+            <div>
+                <label class="text-xs text-neutral-400 mb-2 block font-medium">Folder Color</label>
+                <div class="flex items-center justify-between" id="folderColorPicker">
+                    <div onclick="selectFolderColor('#4273E3', this)" class="w-8 h-8 rounded-full bg-[#4273E3] ring-2 ring-white cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#26B5B5', this)" class="w-8 h-8 rounded-full bg-[#26B5B5] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#EB4634', this)" class="w-8 h-8 rounded-full bg-[#EB4634] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#9B51E0', this)" class="w-8 h-8 rounded-full bg-[#9B51E0] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#F2994A', this)" class="w-8 h-8 rounded-full bg-[#F2994A] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#27AE60', this)" class="w-8 h-8 rounded-full bg-[#27AE60] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#7A635B', this)" class="w-8 h-8 rounded-full bg-[#7A635B] cursor-pointer"></div>
+                </div>
             </div>
-            <div class="flex space-x-2">
-                <input type="text" id="pdfInternalSearchInput" onkeydown="if(event.key==='Enter') executePdfInternalSearch()" placeholder="Enter word or phrase..." class="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white">
-                <button onclick="executePdfInternalSearch()" class="bg-white text-black hover:bg-neutral-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition">Find</button>
-            </div>
-            <div id="pdfSearchResultsList" class="max-h-64 overflow-y-auto space-y-2 no-scrollbar">
-                <p class="text-xs text-neutral-500 text-center py-4">Type a keyword to search across all pages.</p>
+            <div class="flex space-x-3 pt-2">
+                <button onclick="closeCreateFolderModal()" class="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white font-medium py-2.5 rounded-xl transition">Cancel</button>
+                <button onclick="confirmCreateFolder()" class="flex-1 bg-white hover:bg-neutral-200 text-black font-semibold py-2.5 rounded-xl transition">Create</button>
             </div>
         </div>
     </div>
