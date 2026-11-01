@@ -25,7 +25,7 @@ const memoryPdfStore = new Map();
 let currentView = 'home';
 let activeFolderId = null;
 let activePdfId = null;
-let selectedFolderColor = '#FFFFFF';
+let selectedFolderColor = '#4273E3';
 let cachedSelectedText = '';
 
 let isSelectMode = false;
@@ -1630,6 +1630,12 @@ function setReaderBg(color) {
 
 function openCreateFolderModal() {
     document.getElementById('newFolderNameInput').value = '';
+    selectedFolderColor = '#4273E3';
+    const circles = document.querySelectorAll('#folderColorPicker div');
+    circles.forEach((d, idx) => {
+        if (idx === 0) d.classList.add('ring-2', 'ring-white');
+        else d.classList.remove('ring-2', 'ring-white');
+    });
     document.getElementById('createFolderModal').classList.remove('hidden');
     setTimeout(() => document.getElementById('newFolderNameInput').focus(), 50);
 }
