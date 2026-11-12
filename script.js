@@ -14,11 +14,12 @@ let appData = {
     pdfs: [],
     quotes: [],
     trash: [],
-    sortBy: 'dateDesc',
+    sortBy: 'lastReadDesc',
     viewMode: 'list',
     scrollDirection: 'horizontal',
     readerBgColor: '#000000',
     isDarkModeInverted: false,
+    lastOpenedPdfId: null,
     isAppInstalled: false
 };
 
@@ -267,17 +268,30 @@ function loadMetadata() {
             appData.pdfs = parsed.pdfs || [];
             appData.quotes = parsed.quotes || [];
             appData.trash = parsed.trash || [];
-            appData.sortBy = parsed.sortBy || 'dateDesc';
+            appData.sortBy = parsed.sortBy || 'lastReadDesc';
             appData.viewMode = parsed.viewMode || 'list';
             appData.scrollDirection = parsed.scrollDirection || 'horizontal';
             appData.readerBgColor = parsed.readerBgColor || '#000000';
             appData.isDarkModeInverted = Boolean(parsed.isDarkModeInverted);
+            appData.lastOpenedPdfId = parsed.lastOpenedPdfId || null;
         }
         appData.isAppInstalled = localStorage.getItem('samsung_pwa_hidden') === 'true' || window.matchMedia('(display-mode: standalone)').matches;
     } catch (e) {}
 
     scrollDirection = appData.scrollDirection;
     isDarkModeInverted = appData.isDarkModeInverted;
+
+    const labels = {
+        lastReadDesc: 'Sort: Recently Read',
+        dateDesc: 'Sort: Latest',
+        titleAsc: 'Sort: A-Z',
+        titleDesc: 'Sort: Z-A',
+        pagesDesc: 'Sort: Pages'
+    };
+    const sortLabelEl = document.getElementById('sortIndicatorLabel');
+    if (sortLabelEl) {
+        sortLabelEl.innerHTML = `<span>${labels[appData.sortBy] || 'Sort: Recently Read'}</span>`;
+    }
 
     const defaultScrollEl = document.getElementById('defaultScrollSelect');
     if (defaultScrollEl) defaultScrollEl.value = scrollDirection;
@@ -305,10 +319,10 @@ function saveMetadata() {
             viewMode: appData.viewMode,
             scrollDirection: scrollDirection,
             readerBgColor: appData.readerBgColor,
-            isDarkModeInverted: isDarkModeInverted
+            isDarkModeInverted: isDarkModeInverted,
+            lastOpenedPdfId: appData.lastOpenedPdfId
         }));
     } catch (e) {
-        // Fallback if localStorage quota is exceeded by many thumbnails
         try {
             const slimPdfs = appData.pdfs.map(p => ({ ...p, thumbnail: null }));
             localStorage.setItem('samsung_reader_meta_v2', JSON.stringify({
@@ -320,7 +334,8 @@ function saveMetadata() {
                 viewMode: appData.viewMode,
                 scrollDirection: scrollDirection,
                 readerBgColor: appData.readerBgColor,
-                isDarkModeInverted: isDarkModeInverted
+                isDarkModeInverted: isDarkModeInverted,
+                lastOpenedPdfId: appData.lastOpenedPdfId
             }));
         } catch (err) {}
     }
@@ -430,7 +445,6 @@ function closePWAInstallModal(hidePermanently) {
     }
 }
 
-// --- COVER THUMBNAIL GENERATOR & AUTO-BACKFILL ENGINE ---
 async function extractPdfCoverDataUrl(pdfDoc) {
     try {
         const page = await pdfDoc.getPage(1);
@@ -490,7 +504,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadMetadata();
     renderWorkspace();
 
-    // Automatically generate cover thumbnails for any existing PDFs in the library
     setTimeout(() => {
         backfillMissingThumbnails();
     }, 400);
@@ -549,12 +562,14 @@ async function handleFileInputSelection(event) {
 
             const cleanTitle = file.name.replace(/\.[^/.]+$/, "");
             const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+            const nowTime = Date.now();
 
             appData.pdfs.unshift({
                 id: newId,
                 title: cleanTitle,
                 date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                timestamp: Date.now(),
+                timestamp: nowTime,
+                lastReadAt: nowTime,
                 pages: pageCount,
                 lastPage: 1,
                 lastPageOffsetRatio: 0,
@@ -602,6 +617,81 @@ function navigateView(viewName, folderId = null, fromHistory = false) {
     renderWorkspace();
 }
 
+// --- CONTINUE READING SPOTLIGHT BANNER (Shows Last Read PDF on Home Page) ---
+function getMostRecentlyReadPdf() {
+    if (appData.pdfs.length === 0) return null;
+
+    if (appData.lastOpenedPdfId) {
+        const explicitLast = appData.pdfs.find(p => p.id === appData.lastOpenedPdfId);
+        if (explicitLast) return explicitLast;
+    }
+
+    const withReadTime = appData.pdfs.filter(p => p.lastReadAt || p.lastPage > 1);
+    if (withReadTime.length > 0) {
+        return [...withReadTime].sort((a, b) => (b.lastReadAt || b.timestamp || 0) - (a.lastReadAt || a.timestamp || 0))[0];
+    }
+
+    return null;
+}
+
+function renderContinueReadingBanner() {
+    const wrapper = document.getElementById('continueReadingWrapper');
+    const container = document.getElementById('continueReadingContainer');
+    if (!wrapper || !container) return;
+
+    if (currentView !== 'home') {
+        wrapper.classList.add('hidden');
+        return;
+    }
+
+    const lastBook = getMostRecentlyReadPdf();
+    if (!lastBook) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+
+    wrapper.classList.remove('hidden');
+    const currentPage = Math.max(1, parseInt(lastBook.lastPage, 10) || 1);
+    const totalPages = Math.max(1, parseInt(lastBook.pages, 10) || 1);
+    const progressPct = Math.min(100, Math.max(2, Math.round((currentPage / totalPages) * 100)));
+
+    const coverHtml = lastBook.thumbnail
+        ? `<div class="w-14 h-20 bg-neutral-900 border border-neutral-700 rounded-xl overflow-hidden flex-shrink-0 shadow-lg">
+               <img src="${lastBook.thumbnail}" alt="Cover" class="w-full h-full object-cover object-top">
+           </div>`
+        : `<div class="w-14 h-20 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+               ${MONO_ICONS.pdfDoc}
+               <span class="text-[8px] font-bold text-neutral-500 mt-1">PDF</span>
+           </div>`;
+
+    container.innerHTML = `
+        <div onclick="openReader('${lastBook.id}')" class="bg-neutral-950 hover:bg-neutral-900 border border-neutral-700/80 rounded-2xl p-3.5 flex items-center justify-between cursor-pointer transition shadow-xl group active:scale-[0.99]">
+            <div class="flex items-center space-x-4 min-w-0 flex-1 mr-3">
+                ${coverHtml}
+                <div class="min-w-0 flex-1 space-y-1.5">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white text-black">Last Read</span>
+                        <span class="text-xs text-neutral-400 font-medium">${progressPct}% completed</span>
+                    </div>
+                    <h3 class="text-sm sm:text-base font-bold text-white truncate">${escapeHtml(lastBook.title)}</h3>
+                    <div class="space-y-1">
+                        <div class="text-xs text-neutral-400">Page <b class="text-white">${currentPage}</b> of ${totalPages}</div>
+                        <div class="w-full max-w-xs h-1.5 bg-neutral-800 rounded-full overflow-hidden">
+                            <div class="h-full bg-white rounded-full transition-all duration-300" style="width: ${progressPct}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex-shrink-0">
+                <span class="px-3.5 py-2 bg-white text-black group-hover:bg-neutral-200 rounded-xl text-xs font-bold transition flex items-center space-x-1">
+                    <span>Resume</span>
+                    <span>❯</span>
+                </span>
+            </div>
+        </div>
+    `;
+}
+
 function renderWorkspace() {
     document.getElementById('sidebarAllPdfCount').innerText = appData.pdfs.length;
     document.getElementById('sidebarFavCount').innerText = appData.pdfs.filter(p => p.isFav).length;
@@ -619,12 +709,14 @@ function renderWorkspace() {
 
     renderSidebarFolders();
 
+    const continueSec = document.getElementById('continueReadingWrapper');
     const foldersSec = document.getElementById('foldersSectionWrapper');
     const booksSec = document.getElementById('booksSectionWrapper');
     const quotesSec = document.getElementById('quotesSectionWrapper');
     const trashSec = document.getElementById('trashSectionWrapper');
     const capsule = document.getElementById('folderBreadcrumbCapsule');
 
+    if (continueSec) continueSec.classList.add('hidden');
     foldersSec.classList.add('hidden');
     booksSec.classList.add('hidden');
     quotesSec.classList.add('hidden');
@@ -637,6 +729,7 @@ function renderWorkspace() {
     if (currentView === 'home') {
         titleEl.innerText = 'Folders';
         subEl.innerText = `${appData.folders.length} folders, ${appData.pdfs.length} PDFs`;
+        renderContinueReadingBanner();
         foldersSec.classList.remove('hidden');
         booksSec.classList.remove('hidden');
         document.getElementById('contentSectionHeading').innerText = 'All PDFs';
@@ -700,12 +793,22 @@ function renderFoldersGrid() {
     }).join('');
 }
 
+// Automatically brings the Last Read PDF to the top when sorted by 'lastReadDesc'
 function getSortedPdfs(list) {
     const copy = [...list];
     if (appData.sortBy === 'titleAsc') return copy.sort((a, b) => a.title.localeCompare(b.title));
     if (appData.sortBy === 'titleDesc') return copy.sort((a, b) => b.title.localeCompare(a.title));
     if (appData.sortBy === 'pagesDesc') return copy.sort((a, b) => (b.pages || 0) - (a.pages || 0));
-    return copy.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (appData.sortBy === 'dateDesc') return copy.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Default: 'lastReadDesc' -> Most recently read/opened book always comes up first
+    return copy.sort((a, b) => {
+        if (a.id === appData.lastOpenedPdfId && b.id !== appData.lastOpenedPdfId) return -1;
+        if (b.id === appData.lastOpenedPdfId && a.id !== appData.lastOpenedPdfId) return 1;
+        const timeA = a.lastReadAt || a.timestamp || 0;
+        const timeB = b.lastReadAt || b.timestamp || 0;
+        return timeB - timeA;
+    });
 }
 
 function renderPdfCollection(pdfArray) {
@@ -730,6 +833,7 @@ function renderPdfCollection(pdfArray) {
         const folderObj = appData.folders.find(f => f.id === p.folderId);
         const isSelected = selectedPdfIds.has(p.id);
         const savedPageNum = parseInt(p.lastPage, 10) || 1;
+        const isLastRead = p.id === appData.lastOpenedPdfId;
 
         const gridThumbnailHtml = p.thumbnail
             ? `<div class="w-12 h-16 bg-neutral-900 border border-neutral-700/80 rounded-lg overflow-hidden flex-shrink-0 shadow-md">
@@ -750,7 +854,7 @@ function renderPdfCollection(pdfArray) {
 
         if (appData.viewMode === 'grid') {
             return `
-                <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white ring-1 ring-white' : 'border-neutral-800/80'} rounded-2xl p-4 flex flex-col justify-between h-44 cursor-pointer transition relative">
+                <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white ring-1 ring-white' : (isLastRead ? 'border-neutral-600' : 'border-neutral-800/80')} rounded-2xl p-4 flex flex-col justify-between h-44 cursor-pointer transition relative">
                     <div class="flex items-start justify-between">
                         ${gridThumbnailHtml}
                         <div class="flex items-center space-x-1">
@@ -768,13 +872,16 @@ function renderPdfCollection(pdfArray) {
         }
 
         return `
-            <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white bg-neutral-900' : 'border-neutral-800/80'} rounded-2xl p-3 flex items-center justify-between cursor-pointer transition group">
+            <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white bg-neutral-900' : (isLastRead ? 'border-neutral-600' : 'border-neutral-800/80')} rounded-2xl p-3 flex items-center justify-between cursor-pointer transition group">
                 <div class="flex items-center space-x-3.5 min-w-0 flex-1">
                     ${isSelectMode ? `
                         <input type="checkbox" ${isSelected ? 'checked' : ''} class="w-4 h-4 accent-white pointer-events-none">
                     ` : listThumbnailHtml}
                     <div class="min-w-0 flex-1">
-                        <h4 class="text-sm font-semibold text-white truncate">${escapeHtml(p.title)}</h4>
+                        <div class="flex items-center space-x-2">
+                            <h4 class="text-sm font-semibold text-white truncate">${escapeHtml(p.title)}</h4>
+                            ${isLastRead ? `<span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-200 border border-neutral-700 flex-shrink-0">Recent</span>` : ''}
+                        </div>
                         <div class="flex items-center space-x-2 text-xs text-neutral-500 mt-1">
                             <span>${p.date}</span>
                             <span>•</span>
@@ -830,6 +937,9 @@ function deleteBookFromList(pdfId) {
     const idx = appData.pdfs.findIndex(p => p.id === pdfId);
     if (idx !== -1) {
         const removed = appData.pdfs.splice(idx, 1)[0];
+        if (appData.lastOpenedPdfId === pdfId) {
+            appData.lastOpenedPdfId = appData.pdfs.length > 0 ? appData.pdfs[0].id : null;
+        }
         appData.trash.unshift(removed);
         saveMetadata();
         renderWorkspace();
@@ -953,6 +1063,10 @@ async function openReader(pdfId) {
     if (!pdfMeta) return;
 
     activePdfId = pdfId;
+    appData.lastOpenedPdfId = pdfId;
+    pdfMeta.lastReadAt = Date.now();
+    saveMetadata();
+
     currentView = 'reader';
     userZoomMultiplier = 1.0;
     isRestoringPosition = true;
@@ -1003,7 +1117,6 @@ async function openReader(pdfId) {
         activePdfDoc = await loadingTask.promise;
         totalReaderPages = activePdfDoc.numPages;
 
-        // If cover thumbnail was missing, generate it now
         if (!pdfMeta.thumbnail) {
             extractPdfCoverDataUrl(activePdfDoc).then(url => {
                 if (url) {
@@ -1381,6 +1494,8 @@ function saveLastReadPage(pageNum, offsetRatio = 0) {
     if (p && pageNum >= 1 && pageNum <= totalReaderPages) {
         p.lastPage = pageNum;
         p.lastPageOffsetRatio = Number(offsetRatio.toFixed(3));
+        p.lastReadAt = Date.now();
+        appData.lastOpenedPdfId = activePdfId;
         saveMetadata();
     }
 }
@@ -2017,8 +2132,12 @@ function bulkDeleteSelected() {
     if (selectedPdfIds.size === 0) return;
     const remaining = [];
     appData.pdfs.forEach(p => {
-        if (selectedPdfIds.has(p.id)) appData.trash.unshift(p);
-        else remaining.push(p);
+        if (selectedPdfIds.has(p.id)) {
+            if (appData.lastOpenedPdfId === p.id) appData.lastOpenedPdfId = null;
+            appData.trash.unshift(p);
+        } else {
+            remaining.push(p);
+        }
     });
     appData.pdfs = remaining;
     saveMetadata();
@@ -2047,8 +2166,14 @@ function openSortModal() { document.getElementById('sortModal').classList.remove
 function closeSortModal() { document.getElementById('sortModal').classList.add('hidden'); }
 function applySortOrder(order) {
     appData.sortBy = order;
-    const labels = { dateDesc: 'Sort: Latest', titleAsc: 'Sort: A-Z', titleDesc: 'Sort: Z-A', pagesDesc: 'Sort: Pages' };
-    document.getElementById('sortIndicatorLabel').innerHTML = `<span>${labels[order]}</span>`;
+    const labels = {
+        lastReadDesc: 'Sort: Recently Read',
+        dateDesc: 'Sort: Latest',
+        titleAsc: 'Sort: A-Z',
+        titleDesc: 'Sort: Z-A',
+        pagesDesc: 'Sort: Pages'
+    };
+    document.getElementById('sortIndicatorLabel').innerHTML = `<span>${labels[order] || 'Sort: Recently Read'}</span>`;
     saveMetadata();
     renderWorkspace();
     closeSortModal();
@@ -2065,6 +2190,9 @@ function deleteActiveBook() {
     const idx = appData.pdfs.findIndex(p => p.id === activePdfId);
     if (idx !== -1) {
         const removed = appData.pdfs.splice(idx, 1)[0];
+        if (appData.lastOpenedPdfId === activePdfId) {
+            appData.lastOpenedPdfId = appData.pdfs.length > 0 ? appData.pdfs[0].id : null;
+        }
         appData.trash.unshift(removed);
         saveMetadata();
         toggleReaderMenu(false);
@@ -2167,7 +2295,7 @@ function clearAllData() {
     if (!confirm("Reset all folders, PDFs, and saved quotes in ReadIT?")) return;
     try { localStorage.removeItem('samsung_reader_meta_v2'); } catch(e) {}
     memoryPdfStore.clear();
-    appData = { folders: [], pdfs: [], quotes: [], trash: [], sortBy: 'dateDesc', viewMode: 'list', scrollDirection: 'horizontal', readerBgColor: '#000000', isDarkModeInverted: false, isAppInstalled: false };
+    appData = { folders: [], pdfs: [], quotes: [], trash: [], sortBy: 'lastReadDesc', viewMode: 'list', scrollDirection: 'horizontal', readerBgColor: '#000000', isDarkModeInverted: false, lastOpenedPdfId: null, isAppInstalled: false };
     scrollDirection = 'horizontal';
     isDarkModeInverted = false;
     navigateView('home');
