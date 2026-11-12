@@ -12,20 +12,22 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#000000',
-                        cardBg: '#121212',
-                        cardHover: '#1E1E1E',
-                        sidebarBg: '#0A0A0A',
-                        monoAccent: '#FFFFFF',
-                        monoMuted: '#888888'
+        if (window.tailwind) {
+            tailwind.config = {
+                darkMode: 'class',
+                theme: {
+                    extend: {
+                        colors: {
+                            darkBg: '#000000',
+                            cardBg: '#121212',
+                            cardHover: '#1E1E1E',
+                            sidebarBg: '#0A0A0A',
+                            monoAccent: '#FFFFFF',
+                            monoMuted: '#888888'
+                        }
                     }
                 }
-            }
+            };
         }
     </script>
 
@@ -84,7 +86,7 @@
                     <button onclick="toggleSidebar(true)" class="p-2.5 rounded-full hover:bg-neutral-900 transition active:scale-95" title="Menu">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                     </button>
-                    <span id="stickyMiniTitle" class="text-sm font-bold text-neutral-300 hidden">All PDFs</span>
+                    <span id="offlineStatusBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400">Offline Ready</span>
                 </div>
 
                 <div class="flex items-center space-x-1.5 sm:space-x-2">
@@ -338,16 +340,13 @@
             <button onclick="closeTocDrawer()" class="p-2 rounded-full hover:bg-neutral-900 text-neutral-400 hover:text-white transition">✕</button>
         </div>
 
-        <!-- Tabs: Chapters vs Custom Bookmarks -->
         <div class="grid grid-cols-2 gap-2 p-1 bg-neutral-900 rounded-xl mb-4 flex-shrink-0 border border-neutral-800">
             <button id="tabBtnChapters" onclick="switchTocTab('chapters')" class="py-1.5 text-xs font-bold rounded-lg bg-white text-black transition">Chapters</button>
             <button id="tabBtnBookmarks" onclick="switchTocTab('bookmarks')" class="py-1.5 text-xs font-semibold rounded-lg text-neutral-400 hover:text-white transition">Bookmarks</button>
         </div>
 
-        <!-- Tab 1: Auto-Extracted PDF Outline -->
         <div id="tocChaptersPanel" class="flex-1 overflow-y-auto space-y-1 no-scrollbar pr-1 min-h-0"></div>
 
-        <!-- Tab 2: Custom User Page Bookmarks -->
         <div id="tocBookmarksPanel" class="hidden flex-1 flex flex-col min-h-0">
             <button onclick="addCustomBookmarkOnCurrentPage()" class="w-full mb-3 py-2.5 px-3 bg-white hover:bg-neutral-200 text-black font-semibold text-xs rounded-xl transition flex items-center justify-center space-x-1.5 flex-shrink-0">
                 <span>+ Bookmark Current Page (<span id="bookmarkBtnPageNum">1</span>)</span>
@@ -483,7 +482,6 @@
         </div>
     </div>
 
-    <!-- Create Folder Modal with Color Palette -->
     <div id="createFolderModal" onclick="if(event.target === this) closeCreateFolderModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
         <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
             <h3 class="text-lg font-bold">Create New Folder</h3>
@@ -559,8 +557,8 @@
                     </select>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-neutral-900">
-                    <span>Storage Engine</span>
-                    <span id="storageEngineStatus" class="text-xs text-neutral-400 font-medium">IndexedDB + RAM</span>
+                    <span>Offline Storage Engine</span>
+                    <span id="storageEngineStatus" class="text-xs text-neutral-400 font-medium">IndexedDB Persistent</span>
                 </div>
             </div>
             <button onclick="closeSettingsModal()" class="w-full bg-white text-black font-semibold py-2.5 rounded-xl">Close</button>
@@ -606,9 +604,7 @@
     <script src="script.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(() => {});
-            });
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
         }
     </script>
 </body>
