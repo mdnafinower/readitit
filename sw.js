@@ -1,41 +1,44 @@
-const CACHE_NAME = 'readit-offline-v3';
+const CACHE_NAME = 'readit-offline-core-v5';
 
-const LOCAL_ASSETS = [
+const CORE_LOCAL_ASSETS = [
     './',
     './index.html',
     './style.css',
     './script.js'
 ];
 
-const CDN_ASSETS = [
+const EXTERNAL_CDN_ASSETS = [
     'https://cdn.tailwindcss.com',
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
     'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'
 ];
 
-// 1. Install: Fault-tolerant caching so one CDN hiccup never breaks offline mode
 self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            // Cache local core files first
-            for (const url of LOCAL_ASSETS) {
+            for (const url of CORE_LOCAL_ASSETS) {
                 try {
-                    const res = await fetch(url, { cache: 'reload' });
-                    if (res.ok) await cache.put(url, res);
+                    const response = await fetch(url, { cache: 'reload' });
+                    if (response && response.status === 200) {
+                        await cache.put(url, response.clone());
+                    }
                 } catch (e) {}
             }
-            // Cache external CDNs individually with no-cors fallback
-            for (const url of CDN_ASSETS) {
+
+            for (const url of EXTERNAL_CDN_ASSETS) {
                 try {
-                    const req = new Request(url, { mode: 'cors' });
-                    const res = await fetch(req);
-                    if (res.ok) await cache.put(url, res);
+                    const corsReq = new Request(url, { mode: 'cors' });
+                    const response = await fetch(corsReq);
+                    if (response && response.status === 200) {
+                        await cache.put(url, response.clone());
+                    }
                 } catch (err) {
                     try {
-                        const opaqueRes = await fetch(new Request(url, { mode: 'no-cors' }));
-                        await cache.put(url, opaqueRes);
+                        const noCorsReq = new Request(url, { mode: 'no-cors' });
+                        const opaqueRes = await fetch(noCorsReq);
+                        if (opaqueRes) await cache.put(url, opaqueRes);
                     } catch (e) {}
                 }
             }
@@ -43,74 +46,109 @@ self.addEventListener('install', (event) => {
     );
 });
 
-// 2. Activate: Clean up old caches and take immediate control
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) => {
             return Promise.all(
-                keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+                keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
             );
         }).then(() => self.clients.claim())
     );
 });
 
-// 3. Fetch: Smart routing for Offline Navigation, Local Assets, and CDNs
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     const req = event.request;
     const url = new URL(req.url);
 
-    // A. Handle Page Navigation (Opening the app offline)
+    if (url.protocol === 'blob:' || url.protocol === 'data:') return;
+
+    // 1. Navigation Requests: Instant Offline Shell + Background Update
     if (req.mode === 'navigate') {
         event.respondWith(
-            fetch(req)
-                .then((netRes) => {
-                    const clone = netRes.clone();
-                    caches.open(CACHE_NAME).then(c => c.put('./index.html', clone));
-                    return netRes;
-                })
-                .catch(async () => {
-                    const cache = await caches.open(CACHE_NAME);
-                    return (await cache.match('./index.html')) ||
-                           (await cache.match('./')) ||
-                           (await cache.match('index.html'));
-                })
+            (async () => {
+                const cache = await caches.open(CACHE_NAME);
+                const cachedIndex =
+                    (await cache.match('./index.html')) ||
+                    (await cache.match('./')) ||
+                    (await cache.match('index.html'));
+
+                const networkFetch = fetch(req)
+                    .then((netRes) => {
+                        if (netRes && netRes.status === 200) {
+                            cache.put('./index.html', netRes.clone());
+                        }
+                        return netRes;
+                    })
+                    .catch(() => null);
+
+                if (cachedIndex) {
+                    event.waitUntil(networkFetch);
+                    return cachedIndex;
+                }
+
+                const netResult = await networkFetch;
+                if (netResult) return netResult;
+
+                return new Response(
+                    '<!DOCTYPE html><html><body style="background:#000;color:#fff;font-family:sans-serif;text-align:center;padding:40px;"><h2>ReadIT Offline</h2><p>Please open the app once with internet enabled to finish offline setup.</p></body></html>',
+                    { headers: { 'Content-Type': 'text/html' } }
+                );
+            })()
         );
         return;
     }
 
-    // B. Handle Local App Files (style.css, script.js) -> Network-First with IgnoreSearch fallback
+    // 2. Local App Files (style.css, script.js): Cache-First for Instant Offline + Background Sync
     if (url.origin === self.location.origin) {
         event.respondWith(
-            fetch(req)
-                .then((netRes) => {
-                    if (netRes && netRes.status === 200) {
-                        const clone = netRes.clone();
-                        caches.open(CACHE_NAME).then(c => c.put(req, clone));
-                    }
-                    return netRes;
-                })
-                .catch(async () => {
-                    const cache = await caches.open(CACHE_NAME);
-                    return (await cache.match(req, { ignoreSearch: true })) ||
-                           (await cache.match(url.pathname, { ignoreSearch: true }));
-                })
+            (async () => {
+                const cache = await caches.open(CACHE_NAME);
+                const cachedFile =
+                    (await cache.match(req, { ignoreSearch: true })) ||
+                    (await cache.match(url.pathname, { ignoreSearch: true }));
+
+                const networkUpdate = fetch(req)
+                    .then((netRes) => {
+                        if (netRes && netRes.status === 200) {
+                            cache.put(req, netRes.clone());
+                        }
+                        return netRes;
+                    })
+                    .catch(() => null);
+
+                if (cachedFile) {
+                    event.waitUntil(networkUpdate);
+                    return cachedFile;
+                }
+
+                const netRes = await networkUpdate;
+                return netRes || new Response('', { status: 404 });
+            })()
         );
         return;
     }
 
-    // C. Handle External CDN Libraries (Tailwind, PDF.js, Fonts) -> Cache-First
+    // 3. External CDNs (PDF.js, Tailwind, Fonts): Strict Cache-First
     event.respondWith(
-        caches.match(req, { ignoreSearch: true }).then((cached) => {
-            if (cached) return cached;
-            return fetch(req).then((netRes) => {
+        (async () => {
+            const cache = await caches.open(CACHE_NAME);
+            const cachedCdn =
+                (await cache.match(req, { ignoreSearch: true })) ||
+                (await cache.match(req.url));
+
+            if (cachedCdn) return cachedCdn;
+
+            try {
+                const netRes = await fetch(req);
                 if (netRes && (netRes.status === 200 || netRes.type === 'opaque')) {
-                    const clone = netRes.clone();
-                    caches.open(CACHE_NAME).then(c => c.put(req, clone));
+                    cache.put(req, netRes.clone());
                 }
                 return netRes;
-            });
-        })
+            } catch (e) {
+                return new Response('', { status: 200 });
+            }
+        })()
     );
 });
