@@ -218,14 +218,14 @@
 
         </div>
 
-        <!-- Bottom Scrubber Bar -->
+        <!-- Bottom Scrubber Bar (Tap Page Counter to Jump Directly) -->
         <div id="readerBottomBar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-3 bg-neutral-950/90 backdrop-blur-md border border-neutral-800 px-4 py-2 rounded-full shadow-2xl transition-opacity duration-300">
             <button onclick="prevPage(); event.stopPropagation();" class="text-neutral-400 hover:text-white text-xs font-bold px-1.5">❮</button>
             <input type="range" id="pageScrubberInput" min="1" max="1" value="1" oninput="scrubToPage(this.value)" onclick="event.stopPropagation()" class="w-28 sm:w-44 accent-white cursor-pointer h-1 bg-neutral-800 rounded-lg">
             <button onclick="nextPage(); event.stopPropagation();" class="text-neutral-400 hover:text-white text-xs font-bold px-1.5">❯</button>
-            <span class="text-xs font-semibold text-neutral-300 pl-2 border-l border-neutral-800">
+            <button onclick="jumpToPagePrompt(); event.stopPropagation();" class="text-xs font-semibold text-neutral-200 hover:text-white pl-2 border-l border-neutral-800 cursor-pointer" title="Tap to jump to page">
                 <span id="currentPageIndicator">1</span> / <span id="totalPagesIndicator">1</span>
-            </span>
+            </button>
         </div>
 
     </div>
@@ -366,6 +366,10 @@
                 <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
                 <span>Go to page...</span>
             </button>
+            <button onclick="toggleReaderMenu(false); renameBookPrompt(activePdfId)" class="w-full text-left px-3.5 py-2.5 text-sm rounded-xl hover:bg-neutral-900 transition flex items-center space-x-3">
+                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                <span>Rename book</span>
+            </button>
             <div class="h-[1px] bg-neutral-900 my-1"></div>
             <div class="flex items-center justify-around py-1">
                 <button onclick="toggleFavoriteActiveBook()" id="readerMenuFavBtn" class="text-lg p-2 hover:bg-neutral-900 rounded-xl transition text-white" title="Favorite">☆</button>
@@ -382,25 +386,18 @@
         </div>
     </div>
 
-    <div id="createFolderModal" onclick="if(event.target === this) closeCreateFolderModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
-            <h3 class="text-lg font-bold">Create New Folder</h3>
-            <input type="text" id="newFolderNameInput" onkeydown="if(event.key==='Enter') confirmCreateFolder()" placeholder="Enter folder name..." class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white">
-            <div>
-                <label class="text-xs text-neutral-400 mb-2 block font-medium">Folder Color</label>
-                <div class="flex items-center justify-between" id="folderColorPicker">
-                    <div onclick="selectFolderColor('#4273E3', this)" class="w-8 h-8 rounded-full bg-[#4273E3] ring-2 ring-white cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#26B5B5', this)" class="w-8 h-8 rounded-full bg-[#26B5B5] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#EB4634', this)" class="w-8 h-8 rounded-full bg-[#EB4634] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#9B51E0', this)" class="w-8 h-8 rounded-full bg-[#9B51E0] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#F2994A', this)" class="w-8 h-8 rounded-full bg-[#F2994A] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#27AE60', this)" class="w-8 h-8 rounded-full bg-[#27AE60] cursor-pointer"></div>
-                    <div onclick="selectFolderColor('#7A635B', this)" class="w-8 h-8 rounded-full bg-[#7A635B] cursor-pointer"></div>
-                </div>
+    <div id="readerSearchModal" onclick="if(event.target === this) closeReaderSearchModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-start justify-center p-4 pt-16">
+        <div class="bg-neutral-950 border border-neutral-800 w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold">Search Inside Document</h3>
+                <button onclick="closeReaderSearchModal()" class="text-neutral-400 hover:text-white text-sm">✕</button>
             </div>
-            <div class="flex space-x-3 pt-2">
-                <button onclick="closeCreateFolderModal()" class="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white font-medium py-2.5 rounded-xl transition">Cancel</button>
-                <button onclick="confirmCreateFolder()" class="flex-1 bg-white hover:bg-neutral-200 text-black font-semibold py-2.5 rounded-xl transition">Create</button>
+            <div class="flex space-x-2">
+                <input type="text" id="pdfInternalSearchInput" onkeydown="if(event.key==='Enter') executePdfInternalSearch()" placeholder="Enter word or phrase..." class="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white">
+                <button onclick="executePdfInternalSearch()" class="bg-white text-black hover:bg-neutral-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition">Find</button>
+            </div>
+            <div id="pdfSearchResultsList" class="max-h-64 overflow-y-auto space-y-2 no-scrollbar">
+                <p class="text-xs text-neutral-500 text-center py-4">Type a keyword to search across all pages.</p>
             </div>
         </div>
     </div>
@@ -438,18 +435,21 @@
         </div>
     </div>
 
+    <!-- Create Folder Modal with Color Palette -->
     <div id="createFolderModal" onclick="if(event.target === this) closeCreateFolderModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
         <div class="bg-neutral-950 border border-neutral-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
             <h3 class="text-lg font-bold">Create New Folder</h3>
             <input type="text" id="newFolderNameInput" onkeydown="if(event.key==='Enter') confirmCreateFolder()" placeholder="Enter folder name..." class="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white">
             <div>
-                <label class="text-xs text-neutral-400 mb-2 block font-medium">Monochrome Shade</label>
+                <label class="text-xs text-neutral-400 mb-2 block font-medium">Folder Color</label>
                 <div class="flex items-center justify-between" id="folderColorPicker">
-                    <div onclick="selectFolderColor('#FFFFFF', this)" class="w-8 h-8 rounded-full bg-[#FFFFFF] ring-2 ring-white cursor-pointer border border-neutral-600"></div>
-                    <div onclick="selectFolderColor('#CCCCCC', this)" class="w-8 h-8 rounded-full bg-[#CCCCCC] cursor-pointer border border-neutral-600"></div>
-                    <div onclick="selectFolderColor('#888888', this)" class="w-8 h-8 rounded-full bg-[#888888] cursor-pointer border border-neutral-600"></div>
-                    <div onclick="selectFolderColor('#555555', this)" class="w-8 h-8 rounded-full bg-[#555555] cursor-pointer border border-neutral-600"></div>
-                    <div onclick="selectFolderColor('#333333', this)" class="w-8 h-8 rounded-full bg-[#333333] cursor-pointer border border-neutral-600"></div>
+                    <div onclick="selectFolderColor('#4273E3', this)" class="w-8 h-8 rounded-full bg-[#4273E3] ring-2 ring-white cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#26B5B5', this)" class="w-8 h-8 rounded-full bg-[#26B5B5] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#EB4634', this)" class="w-8 h-8 rounded-full bg-[#EB4634] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#9B51E0', this)" class="w-8 h-8 rounded-full bg-[#9B51E0] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#F2994A', this)" class="w-8 h-8 rounded-full bg-[#F2994A] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#27AE60', this)" class="w-8 h-8 rounded-full bg-[#27AE60] cursor-pointer"></div>
+                    <div onclick="selectFolderColor('#7A635B', this)" class="w-8 h-8 rounded-full bg-[#7A635B] cursor-pointer"></div>
                 </div>
             </div>
             <div class="flex space-x-3 pt-2">
