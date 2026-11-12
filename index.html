@@ -119,6 +119,17 @@
                 <span id="capsuleFolderName" class="text-xs sm:text-sm font-semibold text-white truncate">Folder Name</span>
             </div>
 
+            <!-- Continue Reading (Last Read PDF Spotlight Card) -->
+            <div id="continueReadingWrapper" class="hidden mb-8">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center space-x-1.5">
+                        <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                        <span>Continue Reading</span>
+                    </h2>
+                </div>
+                <div id="continueReadingContainer"></div>
+            </div>
+
             <!-- Folders Grid Section -->
             <div id="foldersSectionWrapper" class="mb-8">
                 <div class="flex items-center justify-between mb-3">
@@ -133,7 +144,7 @@
                 <div class="flex items-center justify-between mb-3">
                     <h2 id="contentSectionHeading" class="text-xs font-bold uppercase tracking-wider text-neutral-500">All PDFs</h2>
                     <button id="sortIndicatorLabel" onclick="openSortModal()" class="text-xs text-neutral-400 hover:text-white cursor-pointer flex items-center space-x-1.5">
-                        <span>Sort: Latest</span>
+                        <span>Sort: Recently Read</span>
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
                     </button>
                 </div>
@@ -218,7 +229,7 @@
 
         </div>
 
-        <!-- Bottom Scrubber Bar (Tap Page Counter to Jump Directly) -->
+        <!-- Bottom Scrubber Bar -->
         <div id="readerBottomBar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-3 bg-neutral-950/90 backdrop-blur-md border border-neutral-800 px-4 py-2 rounded-full shadow-2xl transition-opacity duration-300">
             <button onclick="prevPage(); event.stopPropagation();" class="text-neutral-400 hover:text-white text-xs font-bold px-1.5">❮</button>
             <input type="range" id="pageScrubberInput" min="1" max="1" value="1" oninput="scrubToPage(this.value)" onclick="event.stopPropagation()" class="w-28 sm:w-44 accent-white cursor-pointer h-1 bg-neutral-800 rounded-lg">
@@ -428,6 +439,7 @@
     <div id="sortModal" onclick="if(event.target === this) closeSortModal()" class="fixed inset-0 z-50 bg-black/70 hidden flex items-center justify-center p-4">
         <div class="bg-neutral-950 border border-neutral-800 w-full max-w-xs rounded-3xl p-5 shadow-2xl space-y-1.5">
             <h3 class="text-base font-bold mb-3 px-1">Sort Books By</h3>
+            <button onclick="applySortOrder('lastReadDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Recently Read (Last Read First)</span><span>↺</span></button>
             <button onclick="applySortOrder('dateDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Date Added (Newest)</span><span>↓</span></button>
             <button onclick="applySortOrder('titleAsc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Title (A - Z)</span><span>A-Z</span></button>
             <button onclick="applySortOrder('titleDesc')" class="w-full text-left px-4 py-2.5 rounded-xl hover:bg-neutral-900 text-sm flex justify-between"><span>Title (Z - A)</span><span>Z-A</span></button>
