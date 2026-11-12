@@ -42,6 +42,8 @@ let totalReaderPages = 1;
 let scrollDirection = 'horizontal';
 let isDarkModeInverted = false;
 let readerUiVisible = true;
+let activeBookOutline = [];
+let activeTocTab = 'chapters';
 
 let baseFitScale = 1.0;
 let basePageWidth = 0;
@@ -91,6 +93,13 @@ function setupHardwareBackNavigation() {
     window.history.pushState({ app: 'ReadIT', guard: true }, '');
 
     window.addEventListener('popstate', () => {
+        const tocDrawer = document.getElementById('tocDrawer');
+        if (tocDrawer && !tocDrawer.classList.contains('translate-x-full')) {
+            closeTocDrawer();
+            window.history.pushState({ app: 'ReadIT', guard: true }, '');
+            return;
+        }
+
         const modalIds = [
             'quoteModal', 'readerSearchModal', 'pageSettingsModal',
             'readerMenuModal', 'homeMenuModal', 'sortModal',
@@ -161,7 +170,12 @@ function setupKeyboardShortcuts() {
                 e.preventDefault();
                 prevPage();
             } else if (e.key === 'Escape') {
-                closeReader();
+                const tocDrawer = document.getElementById('tocDrawer');
+                if (tocDrawer && !tocDrawer.classList.contains('translate-x-full')) {
+                    closeTocDrawer();
+                } else {
+                    closeReader();
+                }
             }
         }
     });
@@ -573,6 +587,7 @@ async function handleFileInputSelection(event) {
                 pages: pageCount,
                 lastPage: 1,
                 lastPageOffsetRatio: 0,
+                bookmarks: [],
                 size: fileSizeMB,
                 thumbnail: coverDataUrl,
                 folderId: currentView === 'folder' ? activeFolderId : null,
@@ -617,7 +632,6 @@ function navigateView(viewName, folderId = null, fromHistory = false) {
     renderWorkspace();
 }
 
-// --- CONTINUE READING SPOTLIGHT BANNER (Shows Last Read PDF on Home Page) ---
 function getMostRecentlyReadPdf() {
     if (appData.pdfs.length === 0) return null;
 
@@ -793,7 +807,6 @@ function renderFoldersGrid() {
     }).join('');
 }
 
-// Automatically brings the Last Read PDF to the top when sorted by 'lastReadDesc'
 function getSortedPdfs(list) {
     const copy = [...list];
     if (appData.sortBy === 'titleAsc') return copy.sort((a, b) => a.title.localeCompare(b.title));
@@ -801,7 +814,6 @@ function getSortedPdfs(list) {
     if (appData.sortBy === 'pagesDesc') return copy.sort((a, b) => (b.pages || 0) - (a.pages || 0));
     if (appData.sortBy === 'dateDesc') return copy.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-    // Default: 'lastReadDesc' -> Most recently read/opened book always comes up first
     return copy.sort((a, b) => {
         if (a.id === appData.lastOpenedPdfId && b.id !== appData.lastOpenedPdfId) return -1;
         if (b.id === appData.lastOpenedPdfId && a.id !== appData.lastOpenedPdfId) return 1;
@@ -1117,6 +1129,8 @@ async function openReader(pdfId) {
         activePdfDoc = await loadingTask.promise;
         totalReaderPages = activePdfDoc.numPages;
 
+        extractPdfOutline(activePdfDoc);
+
         if (!pdfMeta.thumbnail) {
             extractPdfCoverDataUrl(activePdfDoc).then(url => {
                 if (url) {
@@ -1153,6 +1167,7 @@ async function openReader(pdfId) {
 function closeReader(fromHistory = false) {
     clearTimeout(sharpRenderDebounceTimer);
     releaseReaderWakeLock();
+    closeTocDrawer();
     if (activePdfDoc && scrollDirection === 'vertical') {
         detectCurrentVerticalPageFromCenterLine();
     }
@@ -2313,4 +2328,234 @@ function showToast(msg) {
 function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+// --- TABLE OF CONTENTS (CHAPTERS) & CUSTOM BOOKMARKS ENGINE ---
+async function resolveOutlineDestToPage(pdfDoc, dest) {
+    try {
+        let explicitDest = dest;
+        if (typeof dest === 'string') {
+            explicitDest = await pdfDoc.getDestination(dest);
+        }
+        if (!Array.isArray(explicitDest) || !explicitDest[0]) return null;
+
+        const pageRef = explicitDest[0];
+        if (typeof pageRef === 'number') {
+            return pageRef + 1;
+        }
+        const pageIndex = await pdfDoc.getPageIndex(pageRef);
+        return pageIndex + 1;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function flattenOutlineItems(pdfDoc, items, depth = 0, result = []) {
+    if (!items || !Array.isArray(items)) return result;
+    for (const item of items) {
+        let pageNo = null;
+        if (item.dest) {
+            pageNo = await resolveOutlineDestToPage(pdfDoc, item.dest);
+        }
+        result.push({
+            title: (item.title || 'Untitled Section').trim(),
+            pageNo: pageNo,
+            url: item.url || null,
+            depth: Math.min(depth, 4)
+        });
+        if (item.items && item.items.length > 0) {
+            await flattenOutlineItems(pdfDoc, item.items, depth + 1, result);
+        }
+    }
+    return result;
+}
+
+async function extractPdfOutline(pdfDoc) {
+    activeBookOutline = [];
+    const panel = document.getElementById('tocChaptersPanel');
+    if (panel) {
+        panel.innerHTML = `<p class="text-xs text-neutral-500 text-center py-8">Loading chapters...</p>`;
+    }
+    try {
+        const rawOutline = await pdfDoc.getOutline();
+        if (rawOutline && rawOutline.length > 0) {
+            activeBookOutline = await flattenOutlineItems(pdfDoc, rawOutline);
+        }
+    } catch (e) {
+        activeBookOutline = [];
+    }
+    renderTocChaptersList();
+}
+
+function openTocDrawer() {
+    const drawer = document.getElementById('tocDrawer');
+    const backdrop = document.getElementById('tocBackdrop');
+    if (!drawer || !backdrop) return;
+
+    document.getElementById('bookmarkBtnPageNum').innerText = currentReaderPage;
+    renderTocChaptersList();
+    renderCustomBookmarksList();
+
+    backdrop.classList.remove('hidden');
+    setTimeout(() => backdrop.style.opacity = '1', 10);
+    drawer.classList.remove('translate-x-full');
+}
+
+function closeTocDrawer() {
+    const drawer = document.getElementById('tocDrawer');
+    const backdrop = document.getElementById('tocBackdrop');
+    if (!drawer || !backdrop) return;
+
+    drawer.classList.add('translate-x-full');
+    backdrop.style.opacity = '0';
+    setTimeout(() => backdrop.classList.add('hidden'), 300);
+}
+
+function switchTocTab(tab) {
+    activeTocTab = tab;
+    const btnChapters = document.getElementById('tabBtnChapters');
+    const btnBookmarks = document.getElementById('tabBtnBookmarks');
+    const panelChapters = document.getElementById('tocChaptersPanel');
+    const panelBookmarks = document.getElementById('tocBookmarksPanel');
+
+    if (tab === 'chapters') {
+        btnChapters.className = "py-1.5 text-xs font-bold rounded-lg bg-white text-black transition";
+        btnBookmarks.className = "py-1.5 text-xs font-semibold rounded-lg text-neutral-400 hover:text-white transition";
+        panelChapters.classList.remove('hidden');
+        panelBookmarks.classList.add('hidden');
+        renderTocChaptersList();
+    } else {
+        btnBookmarks.className = "py-1.5 text-xs font-bold rounded-lg bg-white text-black transition";
+        btnChapters.className = "py-1.5 text-xs font-semibold rounded-lg text-neutral-400 hover:text-white transition";
+        panelBookmarks.classList.remove('hidden');
+        panelChapters.classList.add('hidden');
+        document.getElementById('bookmarkBtnPageNum').innerText = currentReaderPage;
+        renderCustomBookmarksList();
+    }
+}
+
+function renderTocChaptersList() {
+    const panel = document.getElementById('tocChaptersPanel');
+    const sub = document.getElementById('tocSubtitle');
+    if (!panel) return;
+
+    if (!activeBookOutline || activeBookOutline.length === 0) {
+        if (sub) sub.innerText = 'No embedded chapters found';
+        panel.innerHTML = `
+            <div class="text-center py-12 px-4 space-y-3">
+                <div class="text-neutral-500 flex justify-center">${MONO_ICONS.pdfDoc}</div>
+                <p class="text-xs font-semibold text-neutral-300">No Table of Contents in this PDF</p>
+                <p class="text-[11px] text-neutral-500 leading-relaxed">
+                    This PDF does not contain an embedded chapter outline. Switch to the <b class="text-white cursor-pointer underline" onclick="switchTocTab('bookmarks')">Bookmarks</b> tab to save your own chapters!
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    if (sub) sub.innerText = `${activeBookOutline.length} chapters available`;
+
+    let activeIdx = -1;
+    for (let i = 0; i < activeBookOutline.length; i++) {
+        if (activeBookOutline[i].pageNo && activeBookOutline[i].pageNo <= currentReaderPage) {
+            activeIdx = i;
+        }
+    }
+
+    panel.innerHTML = activeBookOutline.map((item, idx) => {
+        const isCurrent = idx === activeIdx;
+        const indentPx = item.depth * 14;
+        return `
+            <div onclick="jumpToOutlineItem(${idx})" style="padding-left: ${12 + indentPx}px" class="py-2.5 pr-3 rounded-xl cursor-pointer transition flex items-center justify-between ${isCurrent ? 'bg-neutral-900 border border-neutral-700 text-white font-bold' : 'hover:bg-neutral-900/70 text-neutral-300'}">
+                <span class="text-xs sm:text-sm truncate mr-2">${escapeHtml(item.title)}</span>
+                ${item.pageNo ? `<span class="text-[11px] font-semibold px-2 py-0.5 rounded ${isCurrent ? 'bg-white text-black' : 'bg-neutral-900 text-neutral-400'} flex-shrink-0">p.${item.pageNo}</span>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function jumpToOutlineItem(idx) {
+    const item = activeBookOutline[idx];
+    if (!item) return;
+    closeTocDrawer();
+    if (item.pageNo && item.pageNo >= 1 && item.pageNo <= totalReaderPages) {
+        scrubToPage(item.pageNo);
+    } else if (item.url) {
+        window.open(item.url, '_blank', 'noopener');
+    } else {
+        showToast("Chapter link has no page number");
+    }
+}
+
+function addCustomBookmarkOnCurrentPage() {
+    const p = appData.pdfs.find(x => x.id === activePdfId);
+    if (!p) return;
+    if (!Array.isArray(p.bookmarks)) p.bookmarks = [];
+
+    const defaultLabel = `Page ${currentReaderPage}`;
+    const note = prompt("Enter a title for this bookmark / chapter:", defaultLabel);
+    if (note === null) return;
+
+    const cleanNote = note.trim() || defaultLabel;
+    const existingIdx = p.bookmarks.findIndex(b => b.pageNo === currentReaderPage);
+    if (existingIdx !== -1) {
+        p.bookmarks[existingIdx].title = cleanNote;
+    } else {
+        p.bookmarks.push({
+            id: 'bm_' + Date.now(),
+            pageNo: currentReaderPage,
+            title: cleanNote,
+            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        });
+        p.bookmarks.sort((a, b) => a.pageNo - b.pageNo);
+    }
+
+    saveMetadata();
+    renderCustomBookmarksList();
+    showToast(`Bookmarked Page ${currentReaderPage}`);
+}
+
+function removeCustomBookmark(bmId) {
+    const p = appData.pdfs.find(x => x.id === activePdfId);
+    if (!p || !Array.isArray(p.bookmarks)) return;
+    p.bookmarks = p.bookmarks.filter(b => b.id !== bmId);
+    saveMetadata();
+    renderCustomBookmarksList();
+    showToast("Bookmark removed");
+}
+
+function renderCustomBookmarksList() {
+    const listEl = document.getElementById('customBookmarksList');
+    if (!listEl) return;
+
+    const p = appData.pdfs.find(x => x.id === activePdfId);
+    const bookmarks = (p && Array.isArray(p.bookmarks)) ? p.bookmarks : [];
+
+    if (bookmarks.length === 0) {
+        listEl.innerHTML = `
+            <div class="text-center py-10 px-4 space-y-2">
+                <p class="text-xs text-neutral-400">No custom bookmarks saved for this book yet.</p>
+                <p class="text-[11px] text-neutral-600">Tap the button above to bookmark important pages or chapters.</p>
+            </div>
+        `;
+        return;
+    }
+
+    listEl.innerHTML = bookmarks.map(b => {
+        const isCurrent = b.pageNo === currentReaderPage;
+        return `
+            <div onclick="closeTocDrawer(); scrubToPage(${b.pageNo});" class="p-3 rounded-xl bg-neutral-900 border ${isCurrent ? 'border-white' : 'border-neutral-800 hover:border-neutral-700'} flex items-center justify-between cursor-pointer transition">
+                <div class="min-w-0 flex-1 mr-2">
+                    <h4 class="text-xs sm:text-sm font-semibold text-white truncate">${escapeHtml(b.title)}</h4>
+                    <span class="text-[11px] text-neutral-400">Page ${b.pageNo} • ${b.date || ''}</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-bold px-2 py-0.5 rounded bg-neutral-800 text-neutral-200">p.${b.pageNo}</span>
+                    <button onclick="event.stopPropagation(); removeCustomBookmark('${b.id}')" class="p-1.5 text-neutral-500 hover:text-white transition" title="Delete Bookmark">
+                        ${MONO_ICONS.trash}
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
