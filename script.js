@@ -3,6 +3,8 @@ const READIT_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 51
 const MONO_ICONS = {
     pdfDoc: `<svg class="w-5 h-5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M13 3v5a1 1 0 001 1h5"></path></svg>`,
     folder: `<svg class="w-4 h-4 text-neutral-400 hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>`,
+    edit: `<svg class="w-4 h-4 text-neutral-400 hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>`,
+    trash: `<svg class="w-4 h-4 text-neutral-400 hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
     sun: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`,
     moon: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`
 };
@@ -60,9 +62,135 @@ let pinchTargetSlot = null;
 let lastTapTimestamp = 0;
 let deferredInstallPrompt = null;
 
+// Back Button & Screen Wake Lock State
+let lastBackPressTime = 0;
+let wakeLockSentinel = null;
+
 let db = null;
 const DB_NAME = 'ReadIT_PDFReaderDB_v2';
 const STORE_NAME = 'pdfBinaryStore';
+
+// --- SCREEN WAKE LOCK (Prevents phone screen from turning off while reading) ---
+async function requestReaderWakeLock() {
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+        } catch (e) {}
+    }
+}
+
+function releaseReaderWakeLock() {
+    if (wakeLockSentinel) {
+        wakeLockSentinel.release().catch(() => {});
+        wakeLockSentinel = null;
+    }
+}
+
+// --- ANDROID HARDWARE BACK BUTTON & HISTORY ROUTER ---
+function setupHardwareBackNavigation() {
+    // Push an initial guard state so pressing back never immediately exits the app
+    window.history.replaceState({ app: 'ReadIT', root: true }, '');
+    window.history.pushState({ app: 'ReadIT', guard: true }, '');
+
+    window.addEventListener('popstate', (event) => {
+        // 1. Close any open modal first
+        const modalIds = [
+            'quoteModal', 'readerSearchModal', 'pageSettingsModal',
+            'readerMenuModal', 'homeMenuModal', 'sortModal',
+            'createFolderModal', 'assignFolderModal', 'manageFoldersModal',
+            'settingsModal', 'pwaInstallModal'
+        ];
+        for (const id of modalIds) {
+            const el = document.getElementById(id);
+            if (el && !el.classList.contains('hidden')) {
+                el.classList.add('hidden');
+                window.history.pushState({ app: 'ReadIT', guard: true }, '');
+                return;
+            }
+        }
+
+        // 2. Close Sidebar Drawer if open
+        const drawer = document.getElementById('sidebarDrawer');
+        if (drawer && !drawer.classList.contains('-translate-x-full')) {
+            toggleSidebar(false);
+            window.history.pushState({ app: 'ReadIT', guard: true }, '');
+            return;
+        }
+
+        // 3. Close Search Bar if open
+        const searchWrap = document.getElementById('searchBarWrapper');
+        if (searchWrap && !searchWrap.classList.contains('hidden')) {
+            toggleSearchBar(false);
+            window.history.pushState({ app: 'ReadIT', guard: true }, '');
+            return;
+        }
+
+        // 4. Exit Multi-Select mode if active
+        if (isSelectMode) {
+            exitSelectMode();
+            window.history.pushState({ app: 'ReadIT', guard: true }, '');
+            return;
+        }
+
+        // 5. If inside PDF Reader -> Close reader and return to folder/home
+        if (currentView === 'reader') {
+            closeReader(true);
+            window.history.pushState({ app: 'ReadIT', guard: true }, '');
+            return;
+        }
+
+        // 6. If inside a Folder, Favorites, Quotes, or Trash -> Return to main Home view
+        if (currentView !== 'home') {
+            navigateView('home', null, true);
+            window.history.pushState({ app: 'ReadIT', guard: true }, '');
+            return;
+        }
+
+        // 7. At root Home screen -> Double-press within 2 seconds to exit app
+        const now = Date.now();
+        if (now - lastBackPressTime < 2000) {
+            window.history.back();
+        } else {
+            lastBackPressTime = now;
+            showToast("Press back again to exit ReadIT");
+            window.history.pushState({ app: 'ReadIT', guard: true }, '');
+        }
+    });
+}
+
+// --- KEYBOARD NAVIGATION FOR DESKTOP/LAPTOP ---
+function setupKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (currentView === 'reader') {
+            if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+                e.preventDefault();
+                nextPage();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                prevPage();
+            } else if (e.key === 'Escape') {
+                closeReader();
+            }
+        }
+    });
+}
+
+async function configureOfflinePdfWorker() {
+    if (!window.pdfjsLib) return;
+    const workerCdnUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    try {
+        const res = await fetch(workerCdnUrl);
+        if (res.ok) {
+            const workerCode = await res.text();
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+            return;
+        }
+    } catch (e) {}
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerCdnUrl;
+}
 
 function initDatabase() {
     return new Promise((resolve) => {
@@ -297,24 +425,11 @@ function closePWAInstallModal(hidePermanently) {
     }
 }
 
-async function configureOfflinePdfWorker() {
-    if (!window.pdfjsLib) return;
-    const workerCdnUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    try {
-        const res = await fetch(workerCdnUrl);
-        if (res.ok) {
-            const workerCode = await res.text();
-            const blob = new Blob([workerCode], { type: 'application/javascript' });
-            pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
-            return;
-        }
-    } catch (e) {}
-    pdfjsLib.GlobalWorkerOptions.workerSrc = workerCdnUrl;
-}
-
 window.addEventListener('DOMContentLoaded', async () => {
     await configureOfflinePdfWorker();
     setupDynamicPWA();
+    setupHardwareBackNavigation();
+    setupKeyboardShortcuts();
     await initDatabase();
     loadMetadata();
     renderWorkspace();
@@ -416,7 +531,7 @@ function readFileAsArrayBuffer(file) {
     });
 }
 
-function navigateView(viewName, folderId = null) {
+function navigateView(viewName, folderId = null, fromHistory = false) {
     currentView = viewName;
     activeFolderId = viewName === 'folder' ? folderId : null;
     exitSelectMode();
@@ -554,12 +669,16 @@ function renderPdfCollection(pdfArray) {
 
         if (appData.viewMode === 'grid') {
             return `
-                <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white ring-1 ring-white' : 'border-neutral-800/80'} rounded-2xl p-4 flex flex-col justify-between h-40 cursor-pointer transition relative">
+                <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white ring-1 ring-white' : 'border-neutral-800/80'} rounded-2xl p-4 flex flex-col justify-between h-44 cursor-pointer transition relative">
                     <div class="flex items-start justify-between">
                         <div class="w-10 h-12 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-center">
                             ${MONO_ICONS.pdfDoc}
                         </div>
-                        <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="text-base ${p.isFav ? 'text-white' : 'text-neutral-600 hover:text-white'}">${p.isFav ? '★' : '☆'}</button>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="p-1 text-base ${p.isFav ? 'text-white' : 'text-neutral-600 hover:text-white'}">${p.isFav ? '★' : '☆'}</button>
+                            <button onclick="event.stopPropagation(); renameBookPrompt('${p.id}')" class="p-1" title="Rename">${MONO_ICONS.edit}</button>
+                            <button onclick="event.stopPropagation(); deleteBookFromList('${p.id}')" class="p-1" title="Delete">${MONO_ICONS.trash}</button>
+                        </div>
                     </div>
                     <div>
                         <h4 class="text-xs sm:text-sm font-bold text-white line-clamp-2">${escapeHtml(p.title)}</h4>
@@ -596,11 +715,11 @@ function renderPdfCollection(pdfArray) {
                         ` : ''}
                     </div>
                 </div>
-                <div class="flex items-center space-x-1 ml-2">
+                <div class="flex items-center space-x-0.5 sm:space-x-1 ml-2">
                     <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="p-2 text-base ${p.isFav ? 'text-white' : 'text-neutral-600 hover:text-white'} transition" title="Favorite">${p.isFav ? '★' : '☆'}</button>
-                    <button onclick="event.stopPropagation(); promptAssignFolder('${p.id}')" class="p-2 text-neutral-500 hover:text-white transition" title="Move to Folder">
-                        ${MONO_ICONS.folder}
-                    </button>
+                    <button onclick="event.stopPropagation(); renameBookPrompt('${p.id}')" class="p-2 transition" title="Rename Book">${MONO_ICONS.edit}</button>
+                    <button onclick="event.stopPropagation(); promptAssignFolder('${p.id}')" class="p-2 transition" title="Move to Folder">${MONO_ICONS.folder}</button>
+                    <button onclick="event.stopPropagation(); deleteBookFromList('${p.id}')" class="p-2 transition" title="Move to Trash">${MONO_ICONS.trash}</button>
                 </div>
             </div>
         `;
@@ -615,6 +734,32 @@ function handlePdfCardInteraction(pdfId) {
         renderWorkspace();
     } else {
         openReader(pdfId);
+    }
+}
+
+function renameBookPrompt(pdfId) {
+    const p = appData.pdfs.find(x => x.id === pdfId);
+    if (!p) return;
+    const nextTitle = prompt("Rename PDF book:", p.title);
+    if (nextTitle && nextTitle.trim()) {
+        p.title = nextTitle.trim();
+        if (activePdfId === pdfId) {
+            document.getElementById('readerBookTitle').innerText = p.title;
+        }
+        saveMetadata();
+        renderWorkspace();
+        showToast("Book renamed");
+    }
+}
+
+function deleteBookFromList(pdfId) {
+    const idx = appData.pdfs.findIndex(p => p.id === pdfId);
+    if (idx !== -1) {
+        const removed = appData.pdfs.splice(idx, 1)[0];
+        appData.trash.unshift(removed);
+        saveMetadata();
+        renderWorkspace();
+        showToast("Moved to Trash");
     }
 }
 
@@ -735,6 +880,7 @@ async function openReader(pdfId) {
     userZoomMultiplier = 1.0;
     isRestoringPosition = true;
     updateFitResetBadge();
+    requestReaderWakeLock();
 
     scrollDirection = appData.scrollDirection || 'horizontal';
     const horiz = document.getElementById('horizontalSlideArea');
@@ -804,8 +950,9 @@ async function openReader(pdfId) {
     }
 }
 
-function closeReader() {
+function closeReader(fromHistory = false) {
     clearTimeout(sharpRenderDebounceTimer);
+    releaseReaderWakeLock();
     if (activePdfDoc && scrollDirection === 'vertical') {
         detectCurrentVerticalPageFromCenterLine();
     }
