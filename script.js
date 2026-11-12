@@ -33,6 +33,7 @@ let cachedSelectedText = '';
 let isSelectMode = false;
 let selectedPdfIds = new Set();
 let isBulkMove = false;
+let isBackfillingCovers = false;
 
 let activePdfDoc = null;
 let currentReaderPage = 1;
@@ -62,7 +63,6 @@ let pinchTargetSlot = null;
 let lastTapTimestamp = 0;
 let deferredInstallPrompt = null;
 
-// Back Button & Screen Wake Lock State
 let lastBackPressTime = 0;
 let wakeLockSentinel = null;
 
@@ -70,7 +70,6 @@ let db = null;
 const DB_NAME = 'ReadIT_PDFReaderDB_v2';
 const STORE_NAME = 'pdfBinaryStore';
 
-// --- SCREEN WAKE LOCK (Prevents phone screen from turning off while reading) ---
 async function requestReaderWakeLock() {
     if ('wakeLock' in navigator) {
         try {
@@ -86,14 +85,11 @@ function releaseReaderWakeLock() {
     }
 }
 
-// --- ANDROID HARDWARE BACK BUTTON & HISTORY ROUTER ---
 function setupHardwareBackNavigation() {
-    // Push an initial guard state so pressing back never immediately exits the app
     window.history.replaceState({ app: 'ReadIT', root: true }, '');
     window.history.pushState({ app: 'ReadIT', guard: true }, '');
 
-    window.addEventListener('popstate', (event) => {
-        // 1. Close any open modal first
+    window.addEventListener('popstate', () => {
         const modalIds = [
             'quoteModal', 'readerSearchModal', 'pageSettingsModal',
             'readerMenuModal', 'homeMenuModal', 'sortModal',
@@ -109,7 +105,6 @@ function setupHardwareBackNavigation() {
             }
         }
 
-        // 2. Close Sidebar Drawer if open
         const drawer = document.getElementById('sidebarDrawer');
         if (drawer && !drawer.classList.contains('-translate-x-full')) {
             toggleSidebar(false);
@@ -117,7 +112,6 @@ function setupHardwareBackNavigation() {
             return;
         }
 
-        // 3. Close Search Bar if open
         const searchWrap = document.getElementById('searchBarWrapper');
         if (searchWrap && !searchWrap.classList.contains('hidden')) {
             toggleSearchBar(false);
@@ -125,28 +119,24 @@ function setupHardwareBackNavigation() {
             return;
         }
 
-        // 4. Exit Multi-Select mode if active
         if (isSelectMode) {
             exitSelectMode();
             window.history.pushState({ app: 'ReadIT', guard: true }, '');
             return;
         }
 
-        // 5. If inside PDF Reader -> Close reader and return to folder/home
         if (currentView === 'reader') {
             closeReader(true);
             window.history.pushState({ app: 'ReadIT', guard: true }, '');
             return;
         }
 
-        // 6. If inside a Folder, Favorites, Quotes, or Trash -> Return to main Home view
         if (currentView !== 'home') {
             navigateView('home', null, true);
             window.history.pushState({ app: 'ReadIT', guard: true }, '');
             return;
         }
 
-        // 7. At root Home screen -> Double-press within 2 seconds to exit app
         const now = Date.now();
         if (now - lastBackPressTime < 2000) {
             window.history.back();
@@ -158,7 +148,6 @@ function setupHardwareBackNavigation() {
     });
 }
 
-// --- KEYBOARD NAVIGATION FOR DESKTOP/LAPTOP ---
 function setupKeyboardShortcuts() {
     window.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -318,7 +307,23 @@ function saveMetadata() {
             readerBgColor: appData.readerBgColor,
             isDarkModeInverted: isDarkModeInverted
         }));
-    } catch (e) {}
+    } catch (e) {
+        // Fallback if localStorage quota is exceeded by many thumbnails
+        try {
+            const slimPdfs = appData.pdfs.map(p => ({ ...p, thumbnail: null }));
+            localStorage.setItem('samsung_reader_meta_v2', JSON.stringify({
+                folders: appData.folders,
+                pdfs: slimPdfs,
+                quotes: appData.quotes,
+                trash: appData.trash,
+                sortBy: appData.sortBy,
+                viewMode: appData.viewMode,
+                scrollDirection: scrollDirection,
+                readerBgColor: appData.readerBgColor,
+                isDarkModeInverted: isDarkModeInverted
+            }));
+        } catch (err) {}
+    }
 }
 
 function generatePngIconDataUrl(size) {
@@ -425,6 +430,57 @@ function closePWAInstallModal(hidePermanently) {
     }
 }
 
+// --- COVER THUMBNAIL GENERATOR & AUTO-BACKFILL ENGINE ---
+async function extractPdfCoverDataUrl(pdfDoc) {
+    try {
+        const page = await pdfDoc.getPage(1);
+        const unscaledVp = page.getViewport({ scale: 1.0 });
+        const targetWidth = 140;
+        const scale = targetWidth / Math.max(1, unscaledVp.width);
+        const vp = page.getViewport({ scale: scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(vp.width);
+        canvas.height = Math.floor(vp.height);
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        return canvas.toDataURL('image/jpeg', 0.78);
+    } catch (e) {
+        return null;
+    }
+}
+
+async function backfillMissingThumbnails() {
+    if (isBackfillingCovers || !window.pdfjsLib) return;
+    const missingList = appData.pdfs.filter(p => !p.thumbnail);
+    if (missingList.length === 0) return;
+
+    isBackfillingCovers = true;
+    let updatedAny = false;
+
+    for (const pdfItem of missingList) {
+        try {
+            const binaryData = await retrievePdfBinary(pdfItem.id);
+            if (!binaryData) continue;
+            const loadingTask = pdfjsLib.getDocument({ data: binaryData });
+            const pdfDoc = await loadingTask.promise;
+            const thumbUrl = await extractPdfCoverDataUrl(pdfDoc);
+            if (thumbUrl) {
+                pdfItem.thumbnail = thumbUrl;
+                updatedAny = true;
+                saveMetadata();
+                if (currentView !== 'reader') renderWorkspace();
+            }
+        } catch (e) {}
+    }
+    isBackfillingCovers = false;
+    if (updatedAny && currentView !== 'reader') renderWorkspace();
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
     await configureOfflinePdfWorker();
     setupDynamicPWA();
@@ -433,6 +489,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     await initDatabase();
     loadMetadata();
     renderWorkspace();
+
+    // Automatically generate cover thumbnails for any existing PDFs in the library
+    setTimeout(() => {
+        backfillMissingThumbnails();
+    }, 400);
 
     const fileInput = document.getElementById('pdfFileInput');
     fileInput.addEventListener('change', handleFileInputSelection);
@@ -473,11 +534,13 @@ async function handleFileInputSelection(event) {
             const workerCopy = new Uint8Array(masterBytes);
 
             let pageCount = 1;
+            let coverDataUrl = null;
             try {
                 if (window.pdfjsLib) {
                     const loadingTask = pdfjsLib.getDocument({ data: workerCopy });
                     const pdfDoc = await loadingTask.promise;
                     pageCount = pdfDoc.numPages;
+                    coverDataUrl = await extractPdfCoverDataUrl(pdfDoc);
                 }
             } catch (pdfErr) {}
 
@@ -496,6 +559,7 @@ async function handleFileInputSelection(event) {
                 lastPage: 1,
                 lastPageOffsetRatio: 0,
                 size: fileSizeMB,
+                thumbnail: coverDataUrl,
                 folderId: currentView === 'folder' ? activeFolderId : null,
                 isFav: false
             });
@@ -667,13 +731,28 @@ function renderPdfCollection(pdfArray) {
         const isSelected = selectedPdfIds.has(p.id);
         const savedPageNum = parseInt(p.lastPage, 10) || 1;
 
+        const gridThumbnailHtml = p.thumbnail
+            ? `<div class="w-12 h-16 bg-neutral-900 border border-neutral-700/80 rounded-lg overflow-hidden flex-shrink-0 shadow-md">
+                   <img src="${p.thumbnail}" alt="Cover" class="w-full h-full object-cover object-top" loading="lazy">
+               </div>`
+            : `<div class="w-12 h-16 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                   ${MONO_ICONS.pdfDoc}
+               </div>`;
+
+        const listThumbnailHtml = p.thumbnail
+            ? `<div class="w-11 h-14 bg-neutral-900 border border-neutral-700/80 rounded-lg overflow-hidden flex-shrink-0 shadow-md">
+                   <img src="${p.thumbnail}" alt="Cover" class="w-full h-full object-cover object-top" loading="lazy">
+               </div>`
+            : `<div class="w-11 h-14 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                   ${MONO_ICONS.pdfDoc}
+                   <span class="text-[8px] font-bold text-neutral-500 mt-0.5 tracking-wider">PDF</span>
+               </div>`;
+
         if (appData.viewMode === 'grid') {
             return `
                 <div onclick="handlePdfCardInteraction('${p.id}')" class="bg-cardBg hover:bg-cardHover border ${isSelected ? 'border-white ring-1 ring-white' : 'border-neutral-800/80'} rounded-2xl p-4 flex flex-col justify-between h-44 cursor-pointer transition relative">
                     <div class="flex items-start justify-between">
-                        <div class="w-10 h-12 bg-neutral-900 border border-neutral-800 rounded-lg flex items-center justify-center">
-                            ${MONO_ICONS.pdfDoc}
-                        </div>
+                        ${gridThumbnailHtml}
                         <div class="flex items-center space-x-1">
                             <button onclick="event.stopPropagation(); toggleFavoriteBookFromList('${p.id}')" class="p-1 text-base ${p.isFav ? 'text-white' : 'text-neutral-600 hover:text-white'}">${p.isFav ? '★' : '☆'}</button>
                             <button onclick="event.stopPropagation(); renameBookPrompt('${p.id}')" class="p-1" title="Rename">${MONO_ICONS.edit}</button>
@@ -693,12 +772,7 @@ function renderPdfCollection(pdfArray) {
                 <div class="flex items-center space-x-3.5 min-w-0 flex-1">
                     ${isSelectMode ? `
                         <input type="checkbox" ${isSelected ? 'checked' : ''} class="w-4 h-4 accent-white pointer-events-none">
-                    ` : `
-                        <div class="w-11 h-14 bg-neutral-900 border border-neutral-800 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
-                            ${MONO_ICONS.pdfDoc}
-                            <span class="text-[8px] font-bold text-neutral-500 mt-0.5 tracking-wider">PDF</span>
-                        </div>
-                    `}
+                    ` : listThumbnailHtml}
                     <div class="min-w-0 flex-1">
                         <h4 class="text-sm font-semibold text-white truncate">${escapeHtml(p.title)}</h4>
                         <div class="flex items-center space-x-2 text-xs text-neutral-500 mt-1">
@@ -819,9 +893,12 @@ function renderTrashList() {
     }
     container.innerHTML = appData.trash.map((p, idx) => `
         <div class="bg-cardBg border border-neutral-800 rounded-2xl p-3 flex items-center justify-between">
-            <div class="min-w-0 flex-1">
-                <h4 class="text-sm font-semibold text-neutral-300 truncate">${escapeHtml(p.title)}</h4>
-                <p class="text-xs text-neutral-500">${p.pages || 1} pages</p>
+            <div class="flex items-center space-x-3 min-w-0 flex-1">
+                ${p.thumbnail ? `<img src="${p.thumbnail}" class="w-9 h-12 object-cover object-top rounded border border-neutral-700 flex-shrink-0">` : ''}
+                <div class="min-w-0 flex-1">
+                    <h4 class="text-sm font-semibold text-neutral-300 truncate">${escapeHtml(p.title)}</h4>
+                    <p class="text-xs text-neutral-500">${p.pages || 1} pages</p>
+                </div>
             </div>
             <div class="flex items-center space-x-2">
                 <button onclick="restoreFromTrash(${idx})" class="px-3 py-1 bg-white text-black rounded-lg text-xs font-semibold">Restore</button>
@@ -925,6 +1002,16 @@ async function openReader(pdfId) {
         const loadingTask = pdfjsLib.getDocument({ data: binaryData });
         activePdfDoc = await loadingTask.promise;
         totalReaderPages = activePdfDoc.numPages;
+
+        // If cover thumbnail was missing, generate it now
+        if (!pdfMeta.thumbnail) {
+            extractPdfCoverDataUrl(activePdfDoc).then(url => {
+                if (url) {
+                    pdfMeta.thumbnail = url;
+                    saveMetadata();
+                }
+            });
+        }
 
         const savedPage = parseInt(pdfMeta.lastPage, 10);
         currentReaderPage = (!isNaN(savedPage) && savedPage >= 1 && savedPage <= totalReaderPages) ? savedPage : 1;
