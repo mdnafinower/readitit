@@ -297,7 +297,23 @@ function closePWAInstallModal(hidePermanently) {
     }
 }
 
+async function configureOfflinePdfWorker() {
+    if (!window.pdfjsLib) return;
+    const workerCdnUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    try {
+        const res = await fetch(workerCdnUrl);
+        if (res.ok) {
+            const workerCode = await res.text();
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+            return;
+        }
+    } catch (e) {}
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerCdnUrl;
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
+    await configureOfflinePdfWorker();
     setupDynamicPWA();
     await initDatabase();
     loadMetadata();
